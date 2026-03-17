@@ -53,8 +53,8 @@ class Utils {
     try {
       text = text.replace(/^\[\d+?\]/, "")
       text = text.replace(/\s+/g, " ")
-      // 匹配标题
-      // 引号引起来，100%是标题
+      // Match the title.
+      // Text wrapped in quotes is almost certainly the title.
       let title: string, titleMatch: string
       if (/\u201c(.+)\u201d/.test(text)) {
         [titleMatch, title] = text.match(/\u201c(.+)\u201d/)!
@@ -63,9 +63,9 @@ class Utils {
         }
       } else {
         title = titleMatch = ((text.indexOf(". ") != -1 && text.match(/\.\s/g)!.length >= 2) && text.split(". ") || text.split("."))
-          // 找出最长的两个，其中一个最有可能是一堆作者，另一个最有可能是标题
+          // Take the two longest segments. One is usually the author list and the other the title.
           .sort((a, b) => b.length - a.length)
-          // 统计它们中缩写以及符号出现的次数，出现次数最多的有可能是作者
+          // Count abbreviations and punctuation. The noisier segment is more likely to be authors.
           .map((s: string) => {
             let count = 0;
             [/[A-Z]\./g, /[,\.\-\(\)\:]/g, /\d/g].forEach(regex => {
@@ -74,7 +74,7 @@ class Utils {
             })
             return [count / s.length, s]
           })
-          // 过滤期刊描述
+          // Filter out short journal-description fragments.
           .filter((s: any) => s[1].match(/\s+/g)?.length >= 3)
           .sort((a: any, b: any) => a[0] - b[0])![0][1] as string
         if (/\[[A-Z]\]$/.test(title)) {
@@ -107,7 +107,7 @@ class Utils {
   }
 
   public _parseRefText(text: string): { year: string, authors: string[], title: string } {
-    // 匹配年份
+    // Match the publication year.
     let year
     let _years = text.match(/[^\d]?(\d{4})[^\d]?/g) as string[]
     if (_years) {
@@ -119,8 +119,8 @@ class Utils {
     year = year as string
     if (this.isChinese(text)) {
       // extract author and title
-      // [1] 张 宁, 张 雨青, 吴 坎坎. 信任的心理和神经生理机制. 2011, 1137-1143.
-      // [1] 中央环保督察视角下的城市群高质量发展研究——以成渝城市群为例[J].李毅.  环境生态学.2022(04) 
+      // Example: [1] Zhang Ning, Zhang Yuqing, Wu Kankan. Psychological and neurophysiological mechanisms of trust. 2011, 1137-1143.
+      // Example: [1] Research on high-quality urban agglomeration development from the perspective of central environmental inspections... Li Yi. Environmental Ecology. 2022(04)
       let parts = text
         .replace(/\[.+?\]/g, "")
         .replace(/\s+/g, " ")
@@ -257,7 +257,7 @@ class Utils {
   }
 
   /**
-   * 搜索本地，获取参考文献的本地item引用
+   * Search the local library and attach the matching Zotero item for a reference.
    * @param info 
    * @returns 
    */
@@ -268,7 +268,7 @@ class Utils {
       info._item = this.cache[key]
       return this.cache[key]
     } else {
-      // 进行粗暴搜索，可能时间缓慢
+      // Fall back to a broad local search, which can be slow.
       let items: Zotero.Item[] = await Zotero.Items.getAll(1);
       let getPureText = (s: string) => (this.cache["getPureText" + s] ??= s.toLowerCase().match(/[0-9a-z\u4e00-\u9fa5]+/g)?.join("")!)
       let item = await this.searchItem(info) || items.filter(i => (
@@ -289,7 +289,7 @@ class Utils {
       if (item) {
         info._item = item 
         this.cache[key] = item
-        // 用本地得到的信息反向更新info
+        // Backfill info with fields from the matched local item.
         info.title = item.getField("title") as string
         let DOI = item.getField("DOI") as string
         if (DOI) {

@@ -33770,7 +33770,7 @@ body {
       }
     }
     /**
-     * API失效
+     * Deprecated API path.
      */
     async _getDOIRelatedArray(DOI, limit = 20) {
       let res = await this.requests.get(
@@ -34161,7 +34161,7 @@ body {
         [/^\d+\s+/],
         // 1 Polygon
         [/^[A-Z]\w.+?\(\d+[a-z]?\)/, /^[A-Z][A-Za-z]+[\,\.\uff0c\uff0e]?/, /^.+?,.+.,/, /^[\u4e00-\u9fa5]{1,4}[\,\.\uff0c\uff0e]?/]
-        // 中文
+        // Chinese references
       ];
     }
     async getReferences(reader, fromCurrentPage) {
@@ -34250,7 +34250,7 @@ body {
       return lines;
     }
     /**
-     * 如果是参考文献格式的开头，返回类型；否则返回-1
+     * Return the reference type if the text starts like a reference entry; otherwise return -1.
      * @param text 
      * @returns 
      */
@@ -34267,7 +34267,7 @@ body {
       return -1;
     }
     /**
-     * 把多行合并为一个完整的参考文献
+     * Merge multiple lines into a complete reference entry.
      * @param refLines 
      * @returns 
      */
@@ -34291,7 +34291,7 @@ body {
         let lineRefType = this.getRefType(text);
         if (
           // this.abs(line.x - firstX) < line.height * 1.2 &&
-          // 跳过验证其它，特别小心
+          // Skip other validation here and be extra careful
           lineRefType == refType && refType <= 2 || indent == 0 && lineRefType != -1 && lineRefType == refType && this.abs(firstX - line.x) < (this.abs(indent) || line.height) * 0.5 || indent != 0 && lineRefType == refType && _refLines.find(
             (_line) => line != _line && (line.x - _line.x) * indent > 0 && this.abs(line.x - _line.x) >= this.abs(indent) && this.abs(this.abs(line.x - _line.x) - this.abs(indent)) < 2 * line.height
           ) !== void 0
@@ -34315,7 +34315,7 @@ body {
       return refLines.filter((e) => e);
     }
     /**
-     * 判断A和B两个矩形是否几何相交
+     * Determine whether rectangles A and B intersect geometrically.
      * @param A 
      * @param B 
      * @returns 
@@ -34328,7 +34328,7 @@ body {
       }
     }
     /**
-     * 为items每个item更新对应annotations中annotation的链接信息
+     * Update annotation link information for each item.
      */
     updateItemsAnnotions(items, annotations) {
       let toBox = (rect) => {
@@ -34347,7 +34347,7 @@ body {
       });
     }
     /**
-     * 读取PDF一页面为lines对象
+     * Read one PDF page into a lines object.
      * @param pdfPage 
      * @returns 
      */
@@ -34551,11 +34551,11 @@ body {
           let line = lines[i];
           if (
             // !isStart && pageNum < totalPageNum - 1 &&
-            // 考虑到有些PDF最后一页以图表结尾
-            !isStart && // 图表等
-            // 我们认为上一页的正文（非图表）应从页面最低端开始
+            // Some PDFs end with a figure or table on the last page.
+            !isStart && // Figures, tables, and similar content
+            // Assume the previous page's body text starts from the lowest non-figure region.
             (line != endLine || // ((line.x + line.width) / maxWidth < 0.7 && line.y > pageYmin) ||
-            /(图|fig|Fig|Figure).*\d+/.test(line.text.replace(/\s+/g, "")))
+            /(\u56fe|fig|Fig|Figure).*\d+/.test(line.text.replace(/\s+/g, "")))
           ) {
             ztoolkit.log("Not the endLine, skip", line.text);
             if (part.length && pageNum == totalPageNum - 1) {
@@ -34580,10 +34580,10 @@ body {
           }
           part.push(line);
           if (
-            // 以下条件满足则页内断开
+            // Split within the page when the following conditions are met
             lines[i - 1] && // line.height != lines[i - 1].height ||
             // this.abs(line.height - lines[i - 1].height) > line.height * .5 ||
-            (!heightOverlap(line._height, lines[i - 1]._height) || lines[i].column < lines[i - 1].column || line.pageNum == lines[i - 1].pageNum && line.column == lines[i - 1].column && // 增大行间距阈值
+            (!heightOverlap(line._height, lines[i - 1]._height) || lines[i].column < lines[i - 1].column || line.pageNum == lines[i - 1].pageNum && line.column == lines[i - 1].column && // Increase the line-spacing threshold
             this.abs(line.y - lines[i - 1].y) > line.height * 3)
           ) {
             if (isRefBreak(lines[i - 1].text)) {
@@ -34857,7 +34857,7 @@ body {
       }
     }
     /**
-     * 搜索本地，获取参考文献的本地item引用
+     * Search the local library and find the linked item for a reference.
      * @param info 
      * @returns 
      */
@@ -34993,7 +34993,7 @@ body {
       });
     }
     /**
-     * 放置container到合适位置
+     * Place the container in an appropriate position.
      * 
      */
     place() {
@@ -35152,10 +35152,10 @@ body {
       document.documentElement.appendChild(this.container);
     }
     /**
-     * @param title 标题
-     * @param tags 标签
-     * @param descriptions 描述，一般是期刊，年份作者等
-     * @param content 正文，一般是摘要
+     * @param title Title
+     * @param tags Tags
+     * @param descriptions Descriptions, usually journal, year, authors, etc.
+     * @param content Main text, usually the abstract
      * @returns 
      */
     addTip(title, tags, descriptions, content, according, index, prefIndex) {
@@ -35532,7 +35532,7 @@ body {
       document.documentElement.appendChild(styles);
     }
     /**
-     * 注册阅读侧边栏
+     * Register the reader sidebar.
      */
     async onInit() {
       ztoolkit.ReaderTabPanel.register(
@@ -35761,7 +35761,7 @@ body {
       }, ref);
     }
     /**
-     * 刷新推荐相关
+     * Refresh recommended related items.
      * @param array 
      * @param node 
      * @returns 
@@ -35922,9 +35922,9 @@ body {
       }, 100);
     }
     /**
-     * 刷新按钮触发
-     * @param local 是否允许从本地读取
-     * @param fromCurrentPage 从当前页向前查询参考文献
+     * Refresh button handler.
+     * @param local Whether local cache reads are allowed
+     * @param fromCurrentPage Search backward for references from the current page
      * @returns 
      */
     async refreshReferences(panel, local = true, fromCurrentPage = false) {
@@ -37111,7 +37111,7 @@ Style:
       document.querySelector("#zotero-items-toolbar")?.insertBefore(newNode, node?.nextElementSibling);
     }
     /**
-     * 注册右侧面板
+     * Register the right-side pane.
      */
     initEditPane() {
       let beforeBox = document.querySelector("#zotero-item-pane-content");
@@ -37481,7 +37481,7 @@ Style:
       this.relatedContainer = relatedContainer;
     }
     /**
-     * 图谱节点和列表节点同时触发状态
+     * Synchronize state changes between graph nodes and list nodes.
      * @param arg 
      */
     setNodeState(arg) {
@@ -37671,7 +37671,7 @@ Style:
                   this.setNodeState({ state: "hover", paperID: info.identifiers.paperID });
                 }
               },
-              // 浮窗
+              // Tooltip
               {
                 type: "mouseup",
                 listener: (event) => {
@@ -37710,7 +37710,7 @@ Style:
                   }, timeout / 2);
                 }
               },
-              // 从列表定位到节点
+              // Locate the node from the list
               {
                 type: "click",
                 listener: () => {

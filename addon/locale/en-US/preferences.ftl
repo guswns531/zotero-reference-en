@@ -1,58 +1,52 @@
 caption-refresh = Refresh
-autoRefresh = 
-  .label = References are refreshed automatically, but the following item types are not
-  
+autoRefresh =
+  .label = Automatically refresh references, except for the item types listed below
+
 caption-source = Source
-prioritySource-start = Priority is
-prioritySource-end = used to access references
+prioritySource-start = Prefer
+prioritySource-end = for the first reference lookup
 
-preLoadingPageNum-start = When select PDF, Pre-read the last
-preLoadingPageNum-end = pages to remove invalid information
+preLoadingPageNum-start = When parsing references from PDF, pre-read the last
+preLoadingPageNum-end = pages to remove headers and footers
 
-
-caption-tip = Tip
-isShowTip-start = 
-  .label = The floating window is displayed after the mouse stays on the reference for
+caption-tip = Tooltip
+isShowTip-start =
+  .label = Show the tooltip after hovering over a reference for
 isShowTip-end = ms
 
-ctrlClickTranslate = 
-  .label = Inside the floating window, hold down CTRL and click Text Translate
+ctrlClickTranslate =
+  .label = In the tooltip, translate text when Ctrl-clicking
 
-shadeMillisecond-start = Floating window display/disappearing transparency shades
+shadeMillisecond-start = Tooltip fade-in/fade-out duration
 shadeMillisecond-end = ms
 
-removeTipAfterMillisecond-start = Finally disappears automatically after
+removeTipAfterMillisecond-start = Automatically hide the tooltip after
 removeTipAfterMillisecond-end = ms
 
-tipBackgroundColor = Background Color
-tipTitleColor = Title Color
-
+tipBackgroundColor = Background color
+tipTitleColor = Title color
 
 caption-related = Related
-loadingRelated = 
-  .label = Related panel loads recommended related items
-
-
+loadingRelated =
+  .label = Show recommended related items in the related panel
 
 caption-link = Link
-clickLink-start = 
-  .label = Click link to jump in a split window
-clickLink-splitHorizontally = 
-  .label = Horizontally
-clickLink-splitVertically = 
-  .label = Vertically
-clickLink-end = 
-hoverLink = 
-  .label = Hover link to display a floating window
-
+clickLink-start =
+  .label = Open reader links in a
+clickLink-splitHorizontally =
+  .label = horizontal
+clickLink-splitVertically =
+  .label = vertical
+clickLink-end = split view
+hoverLink =
+  .label = Show a tooltip when hovering over a link
 
 caption-save = Save
-savePDFReferences = 
-  .label = Save references from PDF
-saveAPIReferences = 
-  .label = Save references from API
-
+savePDFReferences =
+  .label = Save references parsed from PDF
+saveAPIReferences =
+  .label = Save references fetched from APIs
 
 caption-match = Match
-notInLibarayOpacity-start = Match items and show items that are not in my library with transparency
-notInLibarayOpacity-end = 
+notInLibarayOpacity-start = Match local items and show items outside My Library with opacity
+notInLibarayOpacity-end =

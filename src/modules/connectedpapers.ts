@@ -79,7 +79,7 @@ export default class ConnectedPapers {
           #zotero-item-pane-content {
             width: 100%;
           }
-        `// 这里添加后会让Mac的图标变形，所以遇Mac不添
+        `// Adding this on macOS distorts the icon, so skip it there.
         + (Zotero.isMac ? "" : `
         #zotero-reference-show-hide-graph-view .toolbarbutton-icon {
           width: 16px;
@@ -144,7 +144,7 @@ export default class ConnectedPapers {
   }
 
   /**
-   * 注册右侧面板
+   * Register the right-side panel.
    */
   private initEditPane() {
     // let relatedbox = (document.querySelector("#zotero-editpane-related") as Element);
@@ -370,7 +370,7 @@ export default class ConnectedPapers {
                     .show()
                   return
                 }
-                // 构建图谱
+                // Build the graph.
                 const items = this.itemIDs.map((id: number) => Zotero.Items.get(id)) as Zotero.Item[]
                 relatedContainer.querySelectorAll(".normal-items .item")?.forEach(e => e.remove())
                 relatedContainer.querySelectorAll(".prior-items .item")?.forEach(e => e.remove())
@@ -535,7 +535,7 @@ export default class ConnectedPapers {
   }
 
   /**
-   * 图谱节点和列表节点同时触发状态
+   * Keep graph nodes and list items in sync for hover and selection state.
    * @param arg 
    */
   private setNodeState(arg: {
@@ -571,7 +571,7 @@ export default class ConnectedPapers {
         paper_id: arg.paperID,
         src: src
       };
-      // 选择普通item，设置prior/deriv works背景色
+      // When a normal item is selected, highlight the related prior/derivative works.
       [
         ...this.relatedContainer?.querySelectorAll(".prior-items .item") as any, 
         ...this.relatedContainer?.querySelectorAll(".deriv-items .item") as any
@@ -582,7 +582,7 @@ export default class ConnectedPapers {
           itemNode.classList.remove("highlight")
         }
       })
-      // 选择prior/deriv works，普通item背景色
+      // When a prior/derivative work is selected, highlight matching normal items.
       Array.prototype.forEach.call(
         this.relatedContainer?.querySelectorAll(".normal-items .item"),
         (itemNode) => {
@@ -604,7 +604,7 @@ export default class ConnectedPapers {
       Array.prototype.forEach.call(
         this.relatedContainer?.querySelectorAll(".item"),
         (itemNode) => {
-          // 跳过选择
+          // Skip the currently selected item.
           // @ts-ignore
           if (this.frame.contentWindow.GLOBAL_SELECTED_PAPER.value?.paper_id == itemNode._ref.identifiers.paperID) {
             return
@@ -739,16 +739,16 @@ export default class ConnectedPapers {
             {
               type: "mouseenter",
               listener: () => {
-                // 图谱hover效果
+                // Mirror hover state in the graph.
                 this.setNodeState({ state: "hover", paperID: info.identifiers.paperID as string })
               }
             },
-            // 浮窗
+            // Tooltip.
             {
               type: "mouseup",
               listener: (event: any) => {
                 if (event.button != 2 ){return }
-                // 浮窗
+                // Tooltip.
                 itemNode.classList.add("active")
                 let timeout = parseInt(Zotero.Prefs.get(`${config.addonRef}.showTipAfterMillisecond`) as string)
                 const position = Zotero.Prefs.get("extensions.zotero.layout", true) == "stacked" ? "top center" : "left"
@@ -778,11 +778,11 @@ export default class ConnectedPapers {
                 }, timeout / 2)
               }
             },
-            // 从列表定位到节点
+            // Jump from the list to the graph node.
             {
               type: "click",
               listener: () => {
-                // 清除浮窗，定位
+                // Clear the tooltip and move focus.
                 tipUI && tipUI.clear()
                 this.setNodeState({ state: "selected", paperID: info.identifiers.paperID as string })
                 new ztoolkit.Clipboard().addText(info.identifiers!.DOI!, "text/unicode").copy()
@@ -838,7 +838,7 @@ export default class ConnectedPapers {
                 popupWin.startCloseTimer(3000);
                 (document.querySelector("#build-graph") as HTMLDivElement).click()
               }
-              // 获取分类
+              // Get the currently selected collection.
               const collection = ZoteroPane.getSelectedCollection()
               let collections: number[] = []
               if (collection) {
@@ -846,7 +846,7 @@ export default class ConnectedPapers {
               }
               if (event.ctrlKey || event.metaKey) {
                 let rect = itemNode.getBoundingClientRect()
-                // 构建分类选择
+                // Build the collection picker.
                 let menuPopup = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", 'menupopup') as XUL.MenuPopup;
                 document.querySelector("#browser")!.append(menuPopup);
                 let collections = Zotero.Collections.getByLibrary(1);
@@ -885,13 +885,13 @@ export default class ConnectedPapers {
     const DOI = item.getField("DOI") as string
     const title = item.getField("title") as string
     if (DOI) {
-      // 根据DOI精确确定id
+      // Resolve the paper ID precisely from the DOI.
       let res = await this.requests.get(
         `https://rest.connectedpapers.com/id_translator/doi/${DOI}`
       )
       return res.paperId
     } else {
-      // 通过标题粗确定标题
+      // Fall back to a title-based lookup.
       // const api = 'https://rest.connectedpapers.com/autocomplete/${title}`
       const api = `https://rest.connectedpapers.com/search/${escape(title)}/1`
       let response = await this.requests.post(api)
@@ -935,7 +935,7 @@ export default class ConnectedPapers {
 
   private initItemsPane() {
     const mainNode = document.querySelector("#item-tree-main-default")!
-    // 图形容器
+    // Graph container.
     const minHeight = 200
     const graphContainer = ztoolkit.UI.createElement(document, "div", {
       id: "graph-view",
@@ -1037,9 +1037,9 @@ export default class ConnectedPapers {
       const firstChild = parent.firstChild as HTMLDivElement
       parent.scrollTo(0, target!.offsetTop - firstChild.offsetTop)
     }
-    // 下面绑定是覆盖
+    // The bindings below intentionally override the default handlers.
     app.graphdata.sim_node_circles
-      // 从图谱节点反向定位到列表
+      // Jump back from the graph node to the list.
       .on("click", (event: any, it: any) => {
         const paperID = it.paperId
         this.setNodeState({ state: "selected", paperID })

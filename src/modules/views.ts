@@ -33,7 +33,7 @@ export default class Views {
     document.documentElement.appendChild(styles);
   }
   /**
-   * 注册阅读侧边栏
+   * Register the reader sidebar.
    */
   public async onInit() {
     ztoolkit.ReaderTabPanel.register(
@@ -133,7 +133,7 @@ export default class Views {
                                   listener: (event: any) => {
                                     timer = window.setTimeout(async () => {
                                       timer = undefined
-                                      // 不从本地储存读取
+                                      // Do not read from local storage
                                       await this.refreshReferences(panel, false, event.ctrlKey || event.metaKey)
                                     }, 1000)
                                   }
@@ -144,7 +144,7 @@ export default class Views {
                                     if (timer) {
                                       window.clearTimeout(timer) 
                                       timer = undefined
-                                      // 本地储存读取
+                                      // Read from local storage
                                       await this.refreshReferences(panel, true, event.ctrlKey || event.metaKey)
                                     }
                                   }
@@ -174,11 +174,11 @@ export default class Views {
   
           panel.append(relatedbox);
           relatedbox.querySelector("box:not(.reference)")?.remove()
-          // 修改链接
+          // Rewrite links
           // window.setTimeout(async () => {
           //   await this.pdfLinks(reader, panel)
           // })
-          // 自动刷新
+          // Auto refresh
           window.setTimeout(async () => {
             if (Zotero.Prefs.get(`${config.addonRef}.autoRefresh`)) {
               let excludeItemTypes = (Zotero.Prefs.get(`${config.addonRef}.notAutoRefreshItemTypes`) as string).split(/,\s*/)
@@ -194,11 +194,11 @@ export default class Views {
               }
             }
           })
-          // 推荐关联
+          // Recommended related items
           window.setTimeout(async () => {
             await this.loadingRelated();
           })
-          // 分割按钮
+          // Split-view buttons
           // window.setTimeout(async () => {
           //   await this.registerSplitButtons(reader);
           // })
@@ -304,7 +304,7 @@ export default class Views {
   }
 
   /**
-   * 刷新推荐相关
+   * Refresh recommended related items.
    * @param array 
    * @param node 
    * @returns 
@@ -345,15 +345,15 @@ export default class Views {
     while (!relatedbox.querySelector('#related-grid'));
     
     let node = relatedbox.querySelector('#related-grid').parentNode! as HTMLDivElement
-    // 已经刷新过
+    // Already refreshed
     if (node.querySelector(".zotero-clicky-plus")) { return }
     ztoolkit.log("getDOIRelatedArray")
     let _relatedArray = (await this.utils.API.getDOIRelatedArray(itemDOI)) as ItemBaseInfo[] || []
     let func = relatedbox.refresh
     relatedbox.refresh = () => {
       func.call(relatedbox)
-      // #42，为Zotero相关条目添加悬浮提示
-      // 把Zotero条目转化为Reference可识别形式
+      // #42: add hover tips for Zotero related items
+      // Convert Zotero items into a format recognized by Reference
       node.querySelectorAll(".box").forEach((e: any) => { e.nextElementSibling?.remove(); e.remove();  })
       ztoolkit.log(_relatedArray)
       let relatedArray = (item.relatedItems.map((key: string) => {
@@ -391,8 +391,8 @@ export default class Views {
     const dests = await _pdfDocument._transport.getDestinations()
     // window.setTimeout(async () => {
     //   dests = await _pdfDocument._transport.getDestinations()
-    //   // 分析href与参考文献对应
-    //   // 统计与参考文献数量一致的引文
+    //   // Analyze the href-to-reference mapping
+    //   // Count citations whose totals match the reference count
     //   const statistics: any = {}
     //   Object.keys(dests).forEach(key => {
     //     let _key = key.replace(/\d/g, "")
@@ -401,14 +401,14 @@ export default class Views {
     //   })
     //   // const totalNum = 36
     //   // let refKey = Object.keys(statistics).find(k => statistics[k] == totalNum)
-    //   // 用最大值概率最大，但是有一定风险
+    //   // The largest count is the most likely match, but it is not risk-free
     //   let refKey = Object.keys(statistics).sort((k1, k2) => statistics[k2]- statistics[k1])[0]
     //   Object.keys(dests).forEach(key => {
     //     if (key.replace(/\d/g, "") == refKey) {
     //       refKeys.push(key)
     //     }
     //   })
-    //   // 根据匹配数字排序
+    //   // Sort by the matched number
     //   refKeys = refKeys.sort((k1: string, k2: string) => {
     //     let n1 = Number(k1.match(/\d+/)![0])
     //     let n2 = Number(k2.match(/\d+/)![0])
@@ -455,7 +455,7 @@ export default class Views {
                 await Zotero.Promise.delay(1000)
               }
               // let dest = unescape()
-              // 有报错，#39 
+              // There is an error here, see #39
               _window.secondViewIframeWindow.eval(`PDFViewerApplication
                 .pdfViewer.linkService.goToDestination("${href.slice(1) }")`)
 
@@ -471,7 +471,7 @@ export default class Views {
               const references = panel.references
               if (!references) { return }
               const [x, y] = dests[href.slice(1)].slice(2, 4)
-              // 确定 refIndex
+              // Determine refIndex
               const distances = references.map((ref: { x: number; y: number }) => (x - ref.x) ** 2 + (y - ref.y) ** 2)
               const minDistance = [...distances].sort((a: number, b: number) => a-b)[0]
               const refIndex = distances.indexOf(minDistance)
@@ -504,9 +504,9 @@ export default class Views {
   }
 
   /**
-   * 刷新按钮触发
-   * @param local 是否允许从本地读取
-   * @param fromCurrentPage 从当前页向前查询参考文献
+   * Handle the refresh button action.
+   * @param local Whether local cached data may be used
+   * @param fromCurrentPage Search references from the current page backward
    * @returns 
    */
   public async refreshReferences(panel: XUL.TabPanel, local: boolean = true, fromCurrentPage: boolean = false) {
@@ -535,7 +535,7 @@ export default class Views {
     let item = this.utils.getItem() as Zotero.Item
     let reader = this.utils.getReader();
     if (panel.getAttribute("source") == "PDF") {
-      // 优先本地读取
+      // Prefer local cache first
       const key = "References-PDF"
       // references = local && addonItem.get(item, key)
       references = local && localStorage.get(item, key)
@@ -713,16 +713,16 @@ export default class Views {
     }
     const sourceConfig = {
       arXiv: { color: "#b31b1b", tip: "arXiv is a free distribution service and an open-access archive for 2,186,475 scholarly articles in the fields of physics, mathematics, computer science, quantitative biology, quantitative finance, statistics, electrical engineering and systems science, and economics. Materials on this site are not peer-reviewed by arXiv." },
-      readpaper: { color: "#1f71e0", tip: "论文阅读平台ReadPaper共收录近2亿篇论文、2.7亿位作者、近3万所高校及研究机构，几乎涵盖了全人类所有学科。科研工作离不开论文的帮助，如何读懂论文，读好论文，这本身就是一个很大的命题，我们的使命是：“让天下没有难读的论文”" },
+      readpaper: { color: "#1f71e0", tip: "ReadPaper is a scholarly reading platform that indexes nearly 200 million papers, 270 million authors, and nearly 30,000 universities and research institutions across almost every discipline. Its mission is to make research papers easier to read and understand." },
       semanticscholar: { color: "#1857b6", tip: "Semantic Scholar is an artificial intelligence–powered research tool for scientific literature developed at the Allen Institute for AI and publicly released in November 2015. It uses advances in natural language processing to provide summaries for scholarly papers. The Semantic Scholar team is actively researching the use of artificial-intelligence in natural language processing, machine learning, Human-Computer interaction, and information retrieval." },
       crossref: { color: "#89bf04", tip: "Crossref is a nonprofit association of approximately 2,000 voting member publishers who represent 4,300 societies and publishers, including both commercial and nonprofit organizations. Crossref includes publishers with varied business models, including those with both open access and subscription policies." },
       connectedpapers: { color: "#35999a", tip: "Connected Papers is a visual tool to help researchers and applied scientists find academic papers relevant to their field of work."},
       DOI: { color: "#fcb426" },
       Zotero: { color: "#d63b3b", tip: "Zotero is a free, easy-to-use tool to help you collect, organize, cite, and share your research sources." },
-      CNKI: { color: "#1b66e6", tip: "中国知网知识发现网络平台—面向海内外读者提供中国学术文献、外文文献、学位论文、报纸、会议、年鉴、工具书等各类资源统一检索、统一导航、在线阅读和下载服务。" }
+      CNKI: { color: "#1b66e6", tip: "CNKI is a knowledge discovery platform that provides unified search, navigation, online reading, and download services for Chinese academic literature, foreign-language literature, theses, newspapers, conference proceedings, yearbooks, and reference books." }
     }
     for (let i = 0; i < coroutines.length; i++) {
-      // 不阻塞
+      // Do not block the UI
       window.setTimeout(async () => {
         let info = await coroutines[i]
         if (!info) { return }
@@ -734,9 +734,9 @@ export default class Views {
             return { color: tagDefaultColor, text: tag }
           }
         }) as any || []
-        // 展示当前数据源tag
+        // Show a tag for the current data source
         if (info.source) { tags.push({ text: info.source, ...sourceConfig[info.source as keyof typeof sourceConfig], source: info.source }) }
-        // 展示可点击跳转链接tag
+        // Show tags for clickable jump links
         if (info.identifiers.DOI) {
           let DOI = info.identifiers.DOI
           tags.push({ text: "DOI", color: sourceConfig.DOI.color, tip: DOI, url: info.url })
@@ -750,10 +750,10 @@ export default class Views {
           tags.push({ text: "URL", color: sourceConfig.CNKI.color, tip: url, url: info.url })
         }
         if (reference._item) {
-          // 用本地Item更新数据
+          // Enrich the data with the local item
           tags.push({ text: "Zotero", color: sourceConfig.Zotero.color, tip: sourceConfig.Zotero.tip, item: reference._item })
         }
-        // 添加
+        // Add the tip entry
         tipUI.addTip(
           this.utils.Html2Text(info.title!)!,
           tags,
@@ -781,27 +781,27 @@ export default class Views {
       notInLibarayOpacity = 1
     }
     let reference = references[refIndex]
-    // 非阻塞搜索
+    // Non-blocking search
     let refText: string
     if (addPrefix) {
       refText = `[${reference?.number || (refIndex + 1)}] ${reference.text}`
     } else {
       refText = reference.text!
     }
-    // 避免重复添加
+    // Avoid duplicate additions
     let toText = (s: string) => s.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, "") 
     if (
       [...node.querySelectorAll(".box label")].find((e: any) => toText(e.innerText) == toText(refText))
     ) {
       return
     }
-    // id描述
+    // Identifier text
     let idText = (
       reference.identifiers
       && Object.values(reference.identifiers).length > 0
       && Object.keys(reference.identifiers)[0] + ": " + Object.values(reference.identifiers)[0]
     ) || "Reference"
-    // 当前item
+    // Current item
     let item = this.utils.getItem()!
     let editTimer: number | undefined
     const box = ztoolkit.UI.createElement(
@@ -823,7 +823,7 @@ export default class Views {
             listener: async (event: any) => {
               event.preventDefault()
               event.stopPropagation()
-              // ctrl点击跳转本地item/url
+              // Ctrl+click jumps to the local item or URL
               if (event.ctrlKey || event.metaKey) {
                 window.clearTimeout(editTimer)
                 if (reference._item) {
@@ -955,13 +955,13 @@ export default class Views {
       textarea.focus()
       label.parentNode!.insertBefore(textarea, label)
       let exitEdit = async () => {
-        // 界面恢复
+        // Restore the UI
         let inputText = textarea.value
         if (!inputText) { return }
         label.style.display = ""
         // textbox.style.display = "none"
         textarea.remove()
-        // 保存结果
+        // Save the result
         if (inputText == reference.text) { return }
         label.innerText = `[${refIndex + 1}] ${inputText}`;
         references[refIndex] = {
@@ -1043,16 +1043,16 @@ export default class Views {
         { closeTime: -1, closeOtherProgressWindows: true}))
         .createLine({ text: collapseText(reference.text!), type: "default" })
         .show()
-      // 检查本地
+      // Check local library state
       let refItem = reference._item || await this.utils.searchLibraryItem(reference)
-      // 禁用按钮
+      // Disable the button
       setState()
       if (refItem) {
         popupWin.changeHeadline("Existing Item")
         popupWin.changeLine({ text: collapseText(refItem.getField("title"))})
       } else {
         let info: ItemBaseInfo = this.utils.refText2Info(reference.text!);
-        // 知网
+        // CNKI
         if (this.utils.isChinese(reference.text!) && Zotero.Jasminum) {
           popupWin.changeHeadline("Creating Item")
           popupWin.changeLine({ text: collapseText(`CNKI: ${info.title}`) })
@@ -1070,7 +1070,7 @@ export default class Views {
         }
         // DOI or arXiv
         else {
-          // DOI信息补全
+          // Fill in DOI information
           if (Object.keys(reference.identifiers).length == 0) {
             popupWin.changeHeadline("Searching DOI")
             popupWin.changeLine({ text: collapseText(`Title: ${info.title!}`) })
@@ -1142,7 +1142,7 @@ export default class Views {
         }
       }, refIndex * 0)
     }
-    // 鼠标进入浮窗展示
+    // Show the floating window on mouse enter
     box.addEventListener("mouseenter", () => {
       if (!Zotero.Prefs.get(`${config.addonRef}.isShowTip`)) { return }
       box.classList.add("active")
@@ -1165,7 +1165,7 @@ export default class Views {
       if (!tipUI) { return }
       const timeout = tipUI.removeTipAfterMillisecond
       tipUI.tipTimer = window.setTimeout(async () => {
-        // 监测是否连续一段时间内无active
+        // Check whether nothing stays active for a continuous period
         for (let i = 0; i < timeout / 2; i++) {
           if (rows.querySelector(".active")) { return }
           await Zotero.Promise.delay(1 / 1000)
@@ -1181,7 +1181,7 @@ export default class Views {
       if (value == "+") {
         if (event.ctrlKey || event.metaKey) {
           let rect = box.getBoundingClientRect()
-          // 构建分类选择
+          // Build the category selector
           let menuPopup = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", 'menupopup') as XUL.MenuPopup;
           document.querySelector("#browser")!.append(menuPopup);
           let collections = Zotero.Collections.getByLibrary(1);
@@ -1216,7 +1216,7 @@ export default class Views {
     rows.append(box, label);
     let referenceNum = rows.childNodes.length
     if (addSearch && referenceNum && !node.querySelector("#zotero-reference-search")) { this.addSearch(node) }
-    // 高度
+    // Height
     const relatedGrid = node.querySelector("#related-grid") as HTMLDivElement
       relatedGrid.style.maxHeight = `${document.documentElement.getBoundingClientRect().height - relatedGrid.getBoundingClientRect().top
     }px`

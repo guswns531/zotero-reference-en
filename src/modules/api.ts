@@ -5,8 +5,8 @@ import Requests from "./requests";
 import { inflate } from "zlib";
 
 /**
- * 放弃知网，默认PDF处理完全可以解析出中文参考文献
- * 知网结果顺序是错误的，并不想加入它
+ * CNKI is deprioritized because PDF parsing can already extract Chinese
+ * references in most cases, and CNKI's result ordering is unreliable.
  */
 class API {
   public utils: Utils;
@@ -239,7 +239,7 @@ class API {
     if (response) {
       response.DOI = DOI
       if (!response.abstract) {
-        // 可能是摘要太长，打开网页版获取
+        // The abstract may be too long, so fetch it from the web page
         let text = await this.requests.get(
           `https://www.semanticscholar.org/paper/${response.paperId}`,
           "text/html"
@@ -322,7 +322,7 @@ class API {
   }
 
   /**
-   * API失效
+   * Deprecated API path.
    */
   async _getDOIRelatedArray(DOI: string, limit: number = 20): Promise<ItemBaseInfo[] | undefined> {
     let res = await this.requests.get(
@@ -440,9 +440,9 @@ class API {
     let response = await this.requests.post(api, body)
     if (response && response?.data?.list?.[0]) {
       let data = response?.data?.list?.[0]
-      // 验证DOI
+      // Verify the DOI
       if (doi) {
-        // 获取paperId的doi
+        // Fetch the DOI for the paperId
         let _res = await this.requests.post(
           "https://readpaper.com/api/microService-app-aiKnowledge/aiKnowledge/paper/getPaperDetailInfo",
           { paperId: data.id }
@@ -527,7 +527,7 @@ class API {
           "Sec-Fetch-Site": "same-origin",
           "X-Requested-With": "XMLHttpRequest",
         },
-        body: `IsSearch=true&QueryJson={"Platform":"","DBCode":"CFLS","KuaKuCode":"CJFQ,CDMD,CIPD,CCND,CISD,SNAD,BDZK,CCJD,CCVD,CJFN","QNode":{"QGroup":[{"Key":"Subject","Title":"","Logic":1,"Items":[{"Title":"主题","Name":"SU","Value":"${keywords}","Operate":"%=","BlurType":""}],"ChildItems":[]}]},"CodeLang":"ch"}&PageName=defaultresult&DBCode=CFLS&CurPage=1&RecordsCntPerPage=20&CurDisplayMode=listmode&CurrSortField=&CurrSortFieldType=desc&IsSentenceSearch=false&Subject=`
+        body: `IsSearch=true&QueryJson={"Platform":"","DBCode":"CFLS","KuaKuCode":"CJFQ,CDMD,CIPD,CCND,CISD,SNAD,BDZK,CCJD,CCVD,CJFN","QNode":{"QGroup":[{"Key":"Subject","Title":"","Logic":1,"Items":[{"Title":"\u4e3b\u9898","Name":"SU","Value":"${keywords}","Operate":"%=","BlurType":""}],"ChildItems":[]}]},"CodeLang":"ch"}&PageName=defaultresult&DBCode=CFLS&CurPage=1&RecordsCntPerPage=20&CurDisplayMode=listmode&CurrSortField=&CurrSortFieldType=desc&IsSentenceSearch=false&Subject=`
       }
     )
     try {
@@ -550,7 +550,7 @@ class API {
   }
 
   async getTitleInfoByCNKI(refText: string): Promise<ItemInfo | undefined> {
-    // 拒绝非中文请求，避免被封IP
+    // Reject non-Chinese requests to reduce the risk of an IP ban
     if (!this.utils.isChinese(refText)) { return }
     let res = this.utils.parseRefText(refText)
     const key = `${res.title}${res.authors}${refText}`
@@ -580,10 +580,10 @@ class API {
         .concat([
           {
             text: [...doc.querySelectorAll("p.total-inform span")]
-              .find(span => span.innerText.includes("下载"))
+              .find(span => span.innerText.includes("\u4e0b\u8f7d"))
               .innerText.match(/\d+/)[0] as string,
             color: "#cc7c08",
-            tip: "知网下载量"
+            tip: "CNKI download count"
           }
         ])
     }
@@ -593,21 +593,21 @@ class API {
 
   async getCNKIFileInfo(fileName: string, count: number=0): Promise<ItemInfo | undefined> {
     /**
-     * 根据账号密码登录
+     * Log in with the configured username and password.
      */
     const prefsKey = `${config.addonRef}.CNKI.token`
     const username = Zotero.Prefs.get(`${config.addonRef}.CNKI.username`) as string;
     const password = Zotero.Prefs.get(`${config.addonRef}.CNKI.password`) as string;
     if (username.length * password.length == 0) {
       (new ztoolkit.ProgressWindow("[Fail] API", { closeOtherProgressWindows: true }))
-        .createLine({ text: "请配置知网研学账号密码后重试", type: "fail" })
+        .createLine({ text: "Configure your CNKI username and password, then try again.", type: "fail" })
         .show()
     }
     let updateToken = async () => {
       function getRandomIP() {
         let ip: string = "";
         for (var i = 0; i < 4; i++) {
-          //判断是否小于3，决定后面要不要拼接.
+          // Decide whether to append a trailing dot based on the octet index
           if (i < 3) {
             ip = ip + String(Math.floor(Math.random() * 256)) + "."
           } else {
@@ -635,7 +635,7 @@ class API {
       token: token,
       "user-agent": userAgent
     })
-    // 这是最后一根救命稻草
+    // This is the final fallback
     const refData = await this.requests.get(refApi, "json", {
       token: token,
       "user-agent": userAgent
@@ -728,4 +728,3 @@ class API {
 }
 
 export default  API
-

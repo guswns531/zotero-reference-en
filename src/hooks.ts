@@ -24,7 +24,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
     Zotero.ProgressWindowSet.closeAll();
     return show.call(this, ...arguments);
   };
-  // 界面
+  // Initialize the main UI integrations.
   const views = new Views();
   await views.onInit();
   Zotero[config.addonInstance].views = views;

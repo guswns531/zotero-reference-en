@@ -1,63 +1,52 @@
-zoteroreference-caption-refresh = 刷新
-zoteroreference-autoRefresh = 
-  .label = 自动刷新参考文献，但排除下述条目类型
+zoteroreference-caption-refresh = Refresh
+zoteroreference-autoRefresh =
+  .label = Automatically refresh references, except for the item types listed below
 
+zoteroreference-caption-source = Source
+zoteroreference-prioritySource-start = Prefer
+zoteroreference-prioritySource-end = for the first reference lookup
 
-zoteroreference-caption-source = 来源
-zoteroreference-prioritySource-start = 优先从
-zoteroreference-prioritySource-end = 获取参考文献
+zoteroreference-preLoadingPageNum-start = When parsing references from PDF, pre-read the last
+zoteroreference-preLoadingPageNum-end = pages to remove headers and footers
 
-zoteroreference-preLoadingPageNum-start = 当从PDF解析参考文献时，预读取页面最后
-zoteroreference-preLoadingPageNum-end = 页，以去页眉页脚等信息
+zoteroreference-caption-tip = Tooltip
+zoteroreference-isShowTip-start =
+  .label = Show the tooltip after hovering over a reference for
+zoteroreference-isShowTip-end = ms
 
+zoteroreference-ctrlClickTranslate =
+  .label = In the tooltip, translate text when Ctrl-clicking
 
+zoteroreference-shadeMillisecond-start = Tooltip fade-in/fade-out duration
+zoteroreference-shadeMillisecond-end = ms
 
-zoteroreference-caption-tip = 浮窗
-zoteroreference-isShowTip-start = 
-  .label = 鼠标在参考文献上停留
-zoteroreference-isShowTip-end = 毫秒后显示悬浮窗
+zoteroreference-removeTipAfterMillisecond-start = Automatically hide the tooltip after
+zoteroreference-removeTipAfterMillisecond-end = ms
 
-zoteroreference-ctrlClickTranslate = 
-  .label = 浮窗内，ctrl点击文字翻译
+zoteroreference-tipBackgroundColor = Background color
+zoteroreference-tipTitleColor = Title color
 
-zoteroreference-shadeMillisecond-start = 浮窗显示/消失透明度渐变
-zoteroreference-shadeMillisecond-end = 毫秒
+zoteroreference-caption-related = Related
+zoteroreference-loadingRelated =
+  .label = Show recommended related items in the related panel
 
-zoteroreference-removeTipAfterMillisecond-start = 最后，在
-zoteroreference-removeTipAfterMillisecond-end = 毫秒后自动消失
+zoteroreference-caption-link = Link
+zoteroreference-clickLink-start =
+  .label = Open reader links in a
+zoteroreference-clickLink-splitHorizontally =
+  .label = horizontal
+zoteroreference-clickLink-splitVertically =
+  .label = vertical
+zoteroreference-clickLink-end = split view
+zoteroreference-hoverLink =
+  .label = Show a tooltip when hovering over a link
 
-zoteroreference-tipBackgroundColor = 背景色
-zoteroreference-tipTitleColor = 标题色
+zoteroreference-caption-save = Save
+zoteroreference-savePDFReferences =
+  .label = Save references parsed from PDF
+zoteroreference-saveAPIReferences =
+  .label = Save references fetched from APIs
 
-
-
-
-zoteroreference-caption-related = 关联
-zoteroreference-loadingRelated = 
-  .label = 关联文献面板显示推荐关联文献
-
-
-zoteroreference-caption-link = 链接
-zoteroreference-clickLink-start = 
-  .label = 点击链接跳转于
-zoteroreference-clickLink-splitHorizontally = 
-  .label = 横向
-zoteroreference-clickLink-splitVertically = 
-  .label = 竖向
-zoteroreference-clickLink-end = 分割窗口
-zoteroreference-hoverLink = 
-  .label = 悬停链接显示浮窗
-
-
-
-
-zoteroreference-caption-save = 储存
-zoteroreference-savePDFReferences = 
-  .label = 储存PDF源参考文献
-zoteroreference-saveAPIReferences = 
-  .label = 储存API源参考文献
-
-zoteroreference-caption-match = 匹配
-zoteroreference-notInLibarayOpacity-start = 匹配本地条目，并且以透明度
-zoteroreference-notInLibarayOpacity-end = 显示不在我的文库的条目
-
+zoteroreference-caption-match = Match
+zoteroreference-notInLibarayOpacity-start = Match local items and show items outside My Library with opacity
+zoteroreference-notInLibarayOpacity-end =
