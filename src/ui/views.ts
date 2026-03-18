@@ -31,6 +31,7 @@ export default class Views {
 
   private addStyle() {
     const styles = ztoolkit.UI.createElement(document, "style", {
+      namespace: "html",
       id: "reference-style",
       properties: {
         innerHTML: `
@@ -97,113 +98,106 @@ export default class Views {
     });
   }
 
-  private forceAttachReaderPanel(reader: _ZoteroTypes.ReaderInstance) {
-    const deck = document.querySelector(".notes-pane-deck")?.previousElementSibling as XUL.Deck | undefined;
-    if (!deck?.selectedPanel) {
-      return false;
+  private renderReferenceSection(body: HTMLElement, item: Zotero.Item) {
+    const panelKey = `item-${item.id}`;
+    if (this.readerPanels.has(panelKey)) {
+      return;
     }
+    const panel = body as any as XUL.TabPanel;
+    this.readerPanels.set(panelKey, panel);
 
-    if ((deck.selectedPanel as any)?.children?.[0]?.tagName === "vbox") {
-      const container = deck.selectedPanel as any;
-      container.innerHTML = "";
-      ztoolkit.UI.appendElement({
-        tag: "tabbox",
-        classList: ["zotero-view-tabbox"],
-        attributes: {
-          flex: "1",
-        },
-        enableElementRecord: false,
-        children: [
-          {
-            tag: "tabs",
-            classList: ["zotero-editpane-tabs"],
-            attributes: {
-              orient: "horizontal",
-            },
-            enableElementRecord: false,
-          },
-          {
-            tag: "tabpanels",
-            classList: ["zotero-view-item"],
-            attributes: {
-              flex: "1",
-            },
-            enableElementRecord: false,
-          },
-        ],
-      }, container);
-    }
-
-    const tabbox = deck.selectedPanel.querySelector("tabbox") as any;
-    if (!tabbox) {
-      return false;
-    }
-    const tabs = tabbox.querySelector("tabs");
-    const tabpanels = tabbox.querySelector("tabpanels");
-    const tabClass = "toolkit-ui-tabs-zotero-reference";
-    let tabpanel = tabpanels?.querySelector(`.${tabClass}`) as XUL.TabPanel | null;
-    if (!tabpanel) {
-      const tab = ztoolkit.UI.createElement(document, "tab", {
-        id: `zotero-reference-${reader._instanceID}`,
-        classList: [tabClass],
-        attributes: {
-          label: getString("tabpanel-reader-tab-label"),
-        },
-        ignoreIfExists: true,
-      });
-      tabpanel = ztoolkit.UI.createElement(document, "tabpanel", {
-        id: `zotero-reference-panel-${reader._instanceID}`,
-        classList: [tabClass],
-        ignoreIfExists: true,
-      }) as XUL.TabPanel;
-      tabs?.appendChild(tab);
-      tabpanels?.appendChild(tabpanel);
-    }
-    this.mountReaderPanel(tabpanel, window, reader);
-    return true;
+    const id = `${config.addonRef}-${panelKey}-extra-reader-tab-div`;
+    panel.querySelector(`#${CSS.escape(id)}`)?.remove();
+    const relatedbox = createReaderRelatedBox({
+      id,
+      panel,
+      onRefresh: async (local, fromCurrentPage) =>
+        this.refreshReferences(panel, local, fromCurrentPage),
+    });
+    this.readerBoxes.set(panelKey, relatedbox);
+    panel.append(relatedbox);
   }
+
   /**
-   * Register the reader sidebar.
+   * Register the references section using Zotero 7 ItemPaneManager API.
    */
   public async onInit() {
+    const sectionId = `${config.addonRef}-references-section`;
+
+    // @ts-ignore - Zotero 7 API
+    Zotero.ItemPaneManager.registerSection({
+      paneID: sectionId,
+      pluginID: config.addonID,
+      header: {
+        l10nID: `${config.addonRef}-tabpanel-reader-tab-label`,
+        label: getString("tabpanel-reader-tab-label"),
+        icon: `chrome://${config.addonRef}/content/icons/favicon.png`,
+      },
+      sidenav: {
+        l10nID: `${config.addonRef}-tabpanel-reader-tab-label`,
+        icon: `chrome://${config.addonRef}/content/icons/favicon.png`,
+      },
+      onInit: ({ body, item }: { body: HTMLElement; item: Zotero.Item }) => {
+        this.renderReferenceSection(body, item);
+      },
+      onRender: ({ body, item }: { body: HTMLElement; item: Zotero.Item }) => {
+        if (!body.hasChildNodes()) {
+          this.renderReferenceSection(body, item);
+        }
+      },
+      onItemChange: ({ body, item }: { body: HTMLElement; item: Zotero.Item }) => {
+        body.innerHTML = "";
+        this.readerPanels.delete(`item-${item.id}`);
+        this.readerBoxes.delete(`item-${item.id}`);
+        this.renderReferenceSection(body, item);
+      },
+      sectionButtons: [
+        {
+          type: "refresh",
+          icon: "chrome://zotero/skin/16/universal/sync.svg",
+          l10nID: `${config.addonRef}-tabpanel-reader-tab-label`,
+          onClick: ({ body }: { body: HTMLElement }) => {
+            this.refreshReferences(body as any as XUL.TabPanel);
+          },
+        },
+      ],
+    });
+
+    // Keep the timer for reader-specific features (PDF links, related, auto-refresh)
     if (!this.readerPanelTimer) {
       this.readerPanelTimer = window.setInterval(async () => {
-        const reader = await this.utils.getReader();
+        const reader = this.utils.getReader();
         if (!reader) {
           return;
         }
         const readerKey = getReaderInstanceKey(reader);
-        if (this.readerPanels.has(readerKey)) {
+        if (this.readerBoxes.has(readerKey)) {
           return;
         }
-        try {
-          await (ztoolkit.ReaderTabPanel as any).addReaderTabPanel?.();
-          if (!this.readerPanels.has(readerKey)) {
-            this.forceAttachReaderPanel(reader);
+        // Find the section body for the current item
+        const item = getReaderParentItem(reader);
+        if (!item) return;
+        const panelKey = `item-${item.id}`;
+        const panel = this.readerPanels.get(panelKey);
+        if (!panel) return;
+
+        this.readerBoxes.set(readerKey, this.readerBoxes.get(panelKey)!);
+        // Auto-refresh
+        if (Zotero.Prefs.get(`${config.addonRef}.autoRefresh`)) {
+          const excludeItemTypes = (Zotero.Prefs.get(`${config.addonRef}.notAutoRefreshItemTypes`) as string).split(/,\s*/);
+          if (panel.getAttribute("isAutoRefresh") != "true") {
+            // @ts-ignore
+            const typeId = item.getType();
+            const itemType = Zotero.ItemTypes.getTypes().find((i: any) => i.id == typeId)?.name as string;
+            if (excludeItemTypes.indexOf(itemType) == -1) {
+              await this.refreshReferences(panel);
+              panel.setAttribute("isAutoRefresh", "true");
+            }
           }
-        } catch (error) {
-          ztoolkit.log("Reader panel fallback failed", error);
         }
+        await this.loadingRelated(reader);
       }, 500);
     }
-
-    await ztoolkit.ReaderTabPanel.register(
-      getString("tabpanel-reader-tab-label"),
-      (
-        panel: XUL.TabPanel | undefined,
-        deck: XUL.Deck,
-        win: Window,
-        reader: _ZoteroTypes.ReaderInstance
-      ) => {
-        ztoolkit.log("Reader tab callback", reader);
-        this.mountReaderPanel(panel, win, reader);
-      },
-      {
-        // targetIndex: 3,
-        tabId: "zotero-reference",
-        selectPanel: false,
-      }
-    )
   }
 
   private getReaderPanel(reader = this.utils.getReader()) {

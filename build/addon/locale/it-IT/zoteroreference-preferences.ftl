@@ -55,4 +55,4 @@ zoteroreference-saveAPIReferences =
 
 zoteroreference-caption-match = Abbina
 zoteroreference-notInLibarayOpacity-start = Abbina elementi e rendi gli elementi che non sono nella biblioteca trasparenti
-zoteroreference-notInLibarayOpacity-end = 
+zoteroreference-notInLibarayOpacity-end = {"  "}

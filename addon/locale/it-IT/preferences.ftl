@@ -55,4 +55,4 @@ saveAPIReferences =
 
 caption-match = Abbina
 notInLibarayOpacity-start = Abbina elementi e rendi gli elementi che non sono nella biblioteca trasparenti
-notInLibarayOpacity-end = 
+notInLibarayOpacity-end = {"  "}

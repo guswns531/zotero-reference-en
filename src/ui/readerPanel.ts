@@ -13,11 +13,11 @@ export function createReaderRelatedBox(options: ReaderPanelOptions) {
 
   relatedbox = ztoolkit.UI.createElement(
     panel.ownerDocument || document,
-    "related-box",
+    "div",
     {
       id,
-      classList: ["zotero-editpane-related"],
-      namespace: "xul",
+      classList: ["zotero-reference-box"],
+      namespace: "html",
       ignoreIfExists: true,
       attributes: {
         flex: "1",
@@ -27,14 +27,12 @@ export function createReaderRelatedBox(options: ReaderPanelOptions) {
       },
       children: [
         {
-          tag: "box",
-          namespace: "xul",
+          tag: "div",
+          namespace: "html",
           classList: ["reference"],
-          attributes: {
-            flex: "1",
-          },
           styles: {
             display: "flex",
+            flex: "1",
           },
           children: [
             {

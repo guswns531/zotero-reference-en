@@ -49,4 +49,4 @@ zoteroreference-saveAPIReferences =
 
 zoteroreference-caption-match = Match
 zoteroreference-notInLibarayOpacity-start = Match local items and show items outside My Library with opacity
-zoteroreference-notInLibarayOpacity-end =
+zoteroreference-notInLibarayOpacity-end = {"  "}

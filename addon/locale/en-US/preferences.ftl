@@ -49,4 +49,4 @@ saveAPIReferences =
 
 caption-match = Match
 notInLibarayOpacity-start = Match local items and show items outside My Library with opacity
-notInLibarayOpacity-end =
+notInLibarayOpacity-end = {"  "}
