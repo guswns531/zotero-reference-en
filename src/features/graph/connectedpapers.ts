@@ -1,10 +1,11 @@
-import Requests from "./requests";
-import { config } from "../../package.json";
+import Requests from "../../platform/requests";
+import { config } from "../../../package.json";
 
-import Views from "./views";
-import TipUI from "./tip";
+import Views from "../../ui/views";
+import TipUI from "../../ui/tip";
 import buildGraphData from "./GraphData";
-const d3 = require("./d3")
+import { getPopupContainer } from "../../utils/zoteroCompat";
+const d3 = require("../../modules/d3")
 
 export default class ConnectedPapers {
   private requests!: Requests;
@@ -21,17 +22,89 @@ export default class ConnectedPapers {
     this.views = views
   }
 
+  private async waitForElement<T extends Element>(
+    selectors: string[],
+    attempts = 50,
+    delayMs = 100,
+  ): Promise<T | undefined> {
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      for (const selector of selectors) {
+        const element = document.querySelector(selector) as T | null;
+        if (element) {
+          return element;
+        }
+      }
+      await Zotero.Promise.delay(delayMs);
+    }
+  }
+
+  private getItemTreeRoot() {
+    return (
+      document.querySelector("#item-tree-main-default")
+      ?? document.querySelector("#item-tree-main")
+    ) as HTMLElement | null;
+  }
+
+  private getItemPaneContent() {
+    return (
+      document.querySelector("#zotero-item-pane-content")
+      ?? document.querySelector("#item-pane-content")
+    ) as HTMLElement | null;
+  }
+
+  private getItemsToolbar() {
+    return (
+      document.querySelector("#zotero-items-toolbar")
+      ?? document.querySelector("#items-toolbar")
+    ) as HTMLElement | null;
+  }
+
+  private getRelatedPanelAnchor() {
+    return (
+      document.querySelector("relatedbox")
+      ?? document.querySelector("related-box")
+      ?? this.getItemPaneContent()
+    ) as HTMLElement | null;
+  }
+
+  private getRelatedPanelWidth() {
+    const width = this.getRelatedPanelAnchor()?.getBoundingClientRect().width;
+    return width ? `${width}px` : "100%";
+  }
+
+  private getMainItemsPaneNode() {
+    return document.querySelector("#item-tree-main-default, #zotero-items-tree-container");
+  }
+
+  private getRelatedBoxNode() {
+    return document.querySelector("relatedbox, related-box");
+  }
+
   public async init() {
     this.addStyle()
     this.registerButton()
     this.initOnSelect()
     document.querySelectorAll("#graph").forEach(e => e.remove());
     // document.querySelectorAll(".resizer").forEach(e => e.remove())
-    while (!document.querySelector("#item-tree-main-default")) {
-      await Zotero.Promise.delay(100)
+    const mainItemsPane = await this.waitForElement<HTMLElement>([
+      "#item-tree-main-default",
+      "#zotero-items-tree-container",
+      "#item-tree-main",
+    ]);
+    if (mainItemsPane) {
+      this.initItemsPane(mainItemsPane);
+    } else {
+      ztoolkit.log("Connected Papers items pane not found. Skipping graph view registration.");
     }
-    this.initItemsPane()
-    this.initEditPane()
+    const itemPaneContent = await this.waitForElement<HTMLElement>([
+      "#zotero-item-pane-content",
+      "#item-pane-content",
+    ]);
+    if (itemPaneContent) {
+      this.initEditPane(itemPaneContent);
+    } else {
+      ztoolkit.log("Connected Papers item pane anchor not found. Skipping related panel registration.");
+    }
   }
 
   private addStyle() {
@@ -92,6 +165,9 @@ export default class ConnectedPapers {
   }
 
   private initOnSelect() {
+    if (!ZoteroPane.itemsView || !("onSelect" in ZoteroPane.itemsView)) {
+      return;
+    }
     ZoteroPane.itemsView.onSelect.addListener(() => {
       this.updateAddOrRemove()
     })
@@ -118,8 +194,16 @@ export default class ConnectedPapers {
   }
 
   private registerButton() {
-    const node = document.querySelector("#zotero-tb-advanced-search")
-    let newNode = node?.cloneNode(true) as XUL.ToolBarButton
+    if (document.querySelector("#zotero-reference-show-hide-graph-view")) {
+      return;
+    }
+    const node = document.querySelector("#zotero-tb-advanced-search") as XUL.ToolBarButton | null
+    const toolbar = this.getItemsToolbar()
+    if (!node || !toolbar) {
+      ztoolkit.log("Connected Papers toolbar anchor not found. Skipping toolbar button registration.");
+      return;
+    }
+    let newNode = node.cloneNode(true) as XUL.ToolBarButton
     newNode.setAttribute("id", "zotero-reference-show-hide-graph-view")
     newNode.setAttribute("tooltiptext", "show/hide")
     newNode.setAttribute("command", "")
@@ -140,15 +224,18 @@ export default class ConnectedPapers {
       }
     })
     newNode.style.listStyleImage = `url(chrome://${config.addonRef}/content/icons/connectedpapers.png)`
-    document.querySelector("#zotero-items-toolbar")?.insertBefore(newNode, node?.nextElementSibling!)
+    toolbar.insertBefore(newNode, node.nextElementSibling)
   }
 
   /**
    * Register the right-side panel.
    */
-  private initEditPane() {
+  private initEditPane(beforeBox = this.getItemPaneContent()) {
     // let relatedbox = (document.querySelector("#zotero-editpane-related") as Element);
-    let beforeBox = (document.querySelector("#zotero-item-pane-content") as Element);
+    if (!beforeBox) {
+      ztoolkit.log("Connected Papers item pane anchor not found. Skipping related panel registration.");
+      return;
+    }
     beforeBox.parentElement?.setAttribute("orient", "vertical");
     const boxAfter = this.boxAfter = document.createElement("box") as XUL.Box;
     boxAfter.id = "connected-papers-relatedsplit-after";
@@ -163,9 +250,13 @@ export default class ConnectedPapers {
   }
 
   public buildRelatedPanel(box: XUL.Box) {
+    const getRelatedWidth = () => {
+      const width = this.getRelatedBoxNode()?.getBoundingClientRect().width;
+      return width ? `${width}px` : "100%";
+    };
     document.querySelector("#zotero-items-splitter")
       ?.addEventListener("mousemove", () => {
-        relatedContainer.style.width = document.querySelector("relatedbox")?.getBoundingClientRect().width + "px"
+        relatedContainer.style.width = getRelatedWidth()
       })
     const relatedContainer = ztoolkit.UI.appendElement({
       // namespace: "xul",
@@ -174,7 +265,7 @@ export default class ConnectedPapers {
       styles: {
         margin: "0",
         padding: "0",
-        width: document.querySelector("relatedbox")?.getBoundingClientRect().width + "px",
+        width: getRelatedWidth(),
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -848,7 +939,7 @@ export default class ConnectedPapers {
                 let rect = itemNode.getBoundingClientRect()
                 // Build the collection picker.
                 let menuPopup = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", 'menupopup') as XUL.MenuPopup;
-                document.querySelector("#browser")!.append(menuPopup);
+                getPopupContainer(document).append(menuPopup);
                 let collections = Zotero.Collections.getByLibrary(1);
                 for (let col of collections) {
                   let menuItem = Zotero.Utilities.Internal.createMenuForTarget(
@@ -933,8 +1024,11 @@ export default class ConnectedPapers {
     return graphData
   }
 
-  private initItemsPane() {
-    const mainNode = document.querySelector("#item-tree-main-default")!
+  private initItemsPane(mainNode = this.getMainItemsPaneNode()) {
+    if (!mainNode) {
+      ztoolkit.log("Connected Papers items pane not found. Skipping graph view registration.");
+      return;
+    }
     // Graph container.
     const minHeight = 200
     const graphContainer = ztoolkit.UI.createElement(document, "div", {

@@ -16,7 +16,8 @@
           "update_link": "https://github.com/muisedestiny/zotero-reference/releases/latest/download/zotero-reference.xpi",
           "applications": {
             "zotero": {
-              "strict_min_version": "6.999"
+              "strict_min_version": "6.999",
+              "strict_max_version": "8.*"
             }
           }
         }

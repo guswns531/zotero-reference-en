@@ -1,5 +1,5 @@
 import { config } from "../../package.json";
-import Utils from "./utils";
+import Utils from "../features/references/utils";
 
 export default class TipUI {
   private utils: Utils;

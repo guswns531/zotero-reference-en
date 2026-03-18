@@ -14,6 +14,8 @@ Open the preferences window before first use and configure the plugin for your w
 
 The colored dots at the top of the popup indicate different data sources. Click a dot to switch sources.
 
+For the current code layout, see [docs/architecture.md](docs/architecture.md).
+
 ![Standard view](https://user-images.githubusercontent.com/51939531/226575476-3234f112-877a-4b6e-a110-ecc3aee72d26.png)
 
 ![Stacked view](https://user-images.githubusercontent.com/51939531/227147529-bd6b97ee-4d5e-4239-adb9-591cdc3a88cb.png)
@@ -42,7 +44,7 @@ The colored dots at the top of the popup indicate different data sources. Click 
 | Action | Trigger | Description |
 | -- | -- | -- |
 | Click the blue area | Copy reference information | Identifiers such as DOI are copied together with the citation. |
-| Long press the blue area | Edit the reference information | This is especially useful for Chinese references, where trimming noisy metadata can improve import success. |
+| Long press the blue area | Edit the reference information | This is useful when the parsed reference needs small cleanup before import. |
 | `Ctrl` + click the blue area | Open the reference URL in the system browser | Resolving the URL may take a moment. |
 | Click `+` | Add the reference to every folder containing the currently opened item, and create a two-way link | |
 | `Ctrl` + click `+` | Add the reference to the folder selected in the Zotero main pane, and create a two-way link | For example, the `GEE` collection in the screenshot above. |
@@ -155,7 +157,6 @@ preprint = preprint
 
 - [x] Add `References` to the sidebar in the main view, not only in the reader view
 - [x] Support importing all references or importing multiple references at once
-- [x] Add support for Chinese references, including a CNKI-based retrieval path
 - [ ] Adjust reference extraction strategies for specific journals
 - [ ] Use different icons for references based on Zotero item type
 

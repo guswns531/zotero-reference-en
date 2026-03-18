@@ -29,12 +29,8 @@ pref("extensions.zotero.__addonRef__.saveAPIReferences", false);
 
 pref("extensions.zotero.__addonRef__.notInLibarayOpacity", "1");
 
-pref("extensions.zotero.__addonRef__.CNKI.username", "");
-pref("extensions.zotero.__addonRef__.CNKI.password", "");
-
 pref("extensions.zotero.__addonRef__.graphView.enable", false);
 pref("extensions.zotero.__addonRef__.graphView.height", "400px");
-
 
 
 

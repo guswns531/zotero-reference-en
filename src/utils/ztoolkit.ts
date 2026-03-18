@@ -1,15 +1,70 @@
-import ZoteroToolkit from "zotero-plugin-toolkit";
+import { BasicTool, makeHelperTool, unregister } from "zotero-plugin-toolkit/dist/basic";
+import { UITool } from "zotero-plugin-toolkit/dist/tools/ui";
+import { ReaderTabPanelManager } from "zotero-plugin-toolkit/dist/managers/readerTabPanel";
+import { PreferencePaneManager } from "zotero-plugin-toolkit/dist/managers/preferencePane";
+import { ClipboardHelper } from "zotero-plugin-toolkit/dist/helpers/clipboard";
+import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
+import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
 import { config } from "../../package.json";
 
 export { createZToolkit };
 
+function ensureToolkitGlobalModules() {
+  const toolkitGlobal = ((Zotero as any)._toolkitGlobal ??= {});
+  const modules = {
+    fieldHooks: {
+      _ready: false,
+      getFieldHooks: {},
+      setFieldHooks: {},
+      isFieldOfBaseHooks: {},
+    },
+    itemTree: {
+      _ready: false,
+      columns: [],
+      renderCellHooks: {},
+    },
+    itemBox: {
+      _ready: false,
+      fieldOptions: {},
+    },
+    shortcut: {
+      _ready: false,
+      eventKeys: [],
+    },
+    prompt: {
+      _ready: false,
+      instance: undefined,
+    },
+    readerInstance: {
+      _ready: false,
+      initializedHooks: {},
+    },
+  } as const;
+
+  for (const [key, defaults] of Object.entries(modules)) {
+    const current = ((toolkitGlobal as any)[key] ??= {});
+    for (const [moduleKey, value] of Object.entries(defaults)) {
+      current[moduleKey] ??= value;
+    }
+  }
+}
+
+class MyToolkit extends BasicTool {
+  UI = new UITool(this);
+  ReaderTabPanel = new ReaderTabPanelManager(this);
+  PreferencePane = new PreferencePaneManager(this);
+  Clipboard = makeHelperTool(ClipboardHelper, this);
+  ProgressWindow = makeHelperTool(ProgressWindowHelper, this);
+  Dialog = makeHelperTool(DialogHelper, this);
+
+  unregisterAll() {
+    unregister(this);
+  }
+}
+
 function createZToolkit() {
-  const _ztoolkit = new ZoteroToolkit();
-  /**
-   * Alternatively, import toolkit modules you use to minify the plugin size.
-   * You can add the modules under the `MyToolkit` class below and uncomment the following line.
-   */
-  // const _ztoolkit = new MyToolkit();
+  ensureToolkitGlobalModules();
+  const _ztoolkit = new MyToolkit();
   initZToolkit(_ztoolkit);
   return _ztoolkit;
 }

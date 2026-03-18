@@ -34,7 +34,6 @@ declare type ItemBaseInfo = {
   identifiers: {
     DOI?: string;
     arXiv?: string;
-    CNKI?: string;
     paperID?: string;
   };
   title: string;

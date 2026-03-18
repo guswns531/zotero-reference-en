@@ -10,15 +10,9 @@ class LocalStorage {
   }
 
   async init(filename: string) {
-    const window = Zotero.getMainWindow();
-    // @ts-ignore
-    const OS = window.OS;
-    if (!(await OS.File.exists(filename))) {
-      const temp = Zotero.getTempDirectory();
-      this.filename = OS.Path.join(temp.path.replace(temp.leafName, ""), `${filename}.json`);
-    } else {
-      this.filename = filename
-    }
+    const temp = Zotero.getTempDirectory();
+    const basePath = temp.path.replace(new RegExp(`${temp.leafName}$`), "");
+    this.filename = /[\\/]/.test(filename) ? filename : `${basePath}${filename}.json`;
     try {
       const rawString = await Zotero.File.getContentsAsync(this.filename) as string
       this.cache = JSON.parse(rawString)
@@ -47,4 +41,3 @@ class LocalStorage {
 }
 
 export default LocalStorage
-

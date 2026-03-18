@@ -7,9 +7,25 @@
 
 var chromeHandle;
 
+function logBootstrap(message, error) {
+  try {
+    const details =
+      error && (error.stack || error.message || String(error))
+        ? ` :: ${error.stack || error.message || String(error)}`
+        : "";
+    const text = `[zoteroreference bootstrap] ${message}${details}`;
+    Services.console.logStringMessage(text);
+    if (error) {
+      Zotero?.logError?.(error);
+      console.error(text, error);
+    }
+  } catch {}
+}
+
 function install(data, reason) {}
 
 async function startup({ id, version, resourceURI, rootURI }, reason) {
+  logBootstrap("startup begin");
   await Zotero.initializationPromise;
 
   // String 'rootURI' introduced in Zotero 7
@@ -33,24 +49,40 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
    */
   const ctx = {
     rootURI,
+    process: {
+      env: {},
+    },
   };
   ctx._globalThis = ctx;
-
-  Services.scriptloader.loadSubScript(
-    `${rootURI}/chrome/content/scripts/__addonRef__.js`,
-    ctx,
-  );
+  try {
+    Services.scriptloader.loadSubScript(
+      `${rootURI}/chrome/content/scripts/__addonRef__.js`,
+      ctx,
+    );
+    logBootstrap("subscript loaded");
+  } catch (error) {
+    logBootstrap("subscript load failed", error);
+    throw error;
+  }
 }
 
 async function onMainWindowLoad({ window }, reason) {
-  Zotero.__addonInstance__?.hooks.onMainWindowLoad(window);
+  logBootstrap("main window load");
+  try {
+    await Zotero.__addonInstance__?.hooks.onMainWindowLoad(window);
+  } catch (error) {
+    logBootstrap("main window load failed", error);
+    throw error;
+  }
 }
 
 async function onMainWindowUnload({ window }, reason) {
+  logBootstrap("main window unload");
   Zotero.__addonInstance__?.hooks.onMainWindowUnload(window);
 }
 
 function shutdown({ id, version, resourceURI, rootURI }, reason) {
+  logBootstrap(`shutdown reason=${reason}`);
   if (reason === APP_SHUTDOWN) {
     return;
   }

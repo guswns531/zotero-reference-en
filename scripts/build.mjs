@@ -14,7 +14,14 @@ import {
 import { env, exit } from "process";
 import replaceInFile from "replace-in-file";
 const { replaceInFileSync } = replaceInFile;
-import details from "../package.json" assert { type: "json" };
+
+function loadJSON(relativePath) {
+  return JSON.parse(
+    readFileSync(new URL(relativePath, import.meta.url), "utf-8"),
+  );
+}
+
+const details = loadJSON("../package.json");
 
 const { name, author, description, homepage, version, config } = details;
 
@@ -122,8 +129,16 @@ function replaceString() {
     /__homepage__/g,
     /__buildVersion__/g,
     /__buildTime__/g,
+    /ChromeUtils\.import\("resource:\/\/gre\/modules\/AddonManager\.jsm"\)/g,
   ];
-  const replaceTo = [author, description, homepage, version, buildTime];
+  const replaceTo = [
+    author,
+    description,
+    homepage,
+    version,
+    buildTime,
+    'ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs")',
+  ];
 
   replaceFrom.push(
     ...Object.keys(config).map((k) => new RegExp(`__${k}__`, "g")),
@@ -135,6 +150,8 @@ function replaceString() {
       `${buildDir}/addon/**/*.xhtml`,
       `${buildDir}/addon/**/*.html`,
       `${buildDir}/addon/**/*.json`,
+      `${buildDir}/addon/chrome/content/scripts/*.js`,
+      `${buildDir}/addon/install.rdf`,
       `${buildDir}/addon/prefs.js`,
       `${buildDir}/addon/manifest.json`,
       `${buildDir}/addon/bootstrap.js`,
@@ -146,6 +163,7 @@ function replaceString() {
 
   if (!isPreRelease) {
     optionsAddon.files.push("update.json");
+    optionsAddon.files.push("update.rdf");
   }
 
   const replaceResult = replaceInFileSync(optionsAddon);
@@ -243,6 +261,7 @@ async function main() {
     );
   } else {
     copyFileSync("update-template.json", "update.json");
+    copyFileSync("update-template.rdf", "update.rdf");
   }
 
   await esbuild();

@@ -1,4 +1,5 @@
-import { config } from "../../package.json";
+import { config } from "../../../package.json";
+import { waitForReaderPDFViewerApplication } from "../../utils/zoteroCompat";
 import Utils from "./utils";
 
 
@@ -12,19 +13,17 @@ class PDF {
     this.utils = utils || new Utils()
     this.refRegex = [
       [/^\(\d+\)\s?/], // (1)
-      [/^\[\d{0,3}\].+?[\,\.\uff0c\uff0e]?/], // [10] Polygon
-      [/^\uff3b\d{0,3}\uff3d.+?[\,\.\uff0c\uff0e]?/],  // ［1］
-      [/^\d+[\,\.\uff0c\uff0e]/], // 1. Polygon
-      [/^\d+[^\d\w]+?[\,\.\uff0c\uff0e]?/], // 1. Polygon
-      [/^\[.+?\].+?[\,\.\uff0c\uff0e]?/], // [RCK + 20] 
+      [/^\[\d{0,3}\].+?[,.]?/], // [10] Polygon
+      [/^\d+[,.]/], // 1. Polygon
+      [/^\d+[^\d\w]+?[,.]?/], // 1. Polygon
+      [/^\[.+?\].+?[,.]?/], // [RCK + 20] 
       [/^\d+\s+/], // 1 Polygon
-      [/^[A-Z]\w.+?\(\d+[a-z]?\)/, /^[A-Z][A-Za-z]+[\,\.\uff0c\uff0e]?/, /^.+?,.+.,/, /^[\u4e00-\u9fa5]{1,4}[\,\.\uff0c\uff0e]?/],  // Chinese
+      [/^[A-Z]\w.+?\(\d+[a-z]?\)/, /^[A-Z][A-Za-z]+[,.]?/, /^.+?,.+.,/],
     ];
   }
 
   async getReferences(reader: _ZoteroTypes.ReaderInstance, fromCurrentPage: boolean): Promise<ItemInfo[]> {
     let refLines = await this.getRefLines(reader, fromCurrentPage)
-    const maxHeight = (reader._internalReader._lastView as any)._iframeWindow.PDFViewerApplication.pdfViewer._pages[0].viewport.viewBox[3]
     if (refLines.length == 0) {
       new ztoolkit.ProgressWindow("[Fail] PDF", {closeOtherProgressWindows: true})
         .createLine({
@@ -288,10 +287,28 @@ class PDF {
     fromCurrentPage: boolean,
     fullText: boolean = false
   ) {
-    const PDFViewerApplication = (reader._internalReader._lastView as any)._iframeWindow.PDFViewerApplication;
+    const PDFViewerApplication = await waitForReaderPDFViewerApplication(reader);
+    if (!PDFViewerApplication) {
+      new ztoolkit.ProgressWindow("[Fail] PDF", { closeOtherProgressWindows: true })
+        .createLine({
+          text: "PDF viewer unavailable",
+          type: "fail",
+        })
+        .show();
+      return [];
+    }
     await PDFViewerApplication.pdfLoadingTask.promise;
     await PDFViewerApplication.pdfViewer.pagesPromise;
-    let pages = PDFViewerApplication.pdfViewer._pages;
+    let pages = PDFViewerApplication.pdfViewer?._pages;
+    if (!Array.isArray(pages) || !pages.length) {
+      new ztoolkit.ProgressWindow("[Fail] PDF", { closeOtherProgressWindows: true })
+        .createLine({
+          text: "PDF pages unavailable",
+          type: "fail",
+        })
+        .show();
+      return [];
+    }
     // skip the pdf with page less than 3
     let pageLines: any = {};
     // read 2 page to remove head and tail
