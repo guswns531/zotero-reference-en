@@ -130,26 +130,28 @@ export default class Views {
       pluginID: config.addonID,
       header: {
         l10nID: `${config.addonRef}-tabpanel-reader-tab-label`,
-        label: getString("tabpanel-reader-tab-label"),
-        icon: `chrome://${config.addonRef}/content/icons/favicon.png`,
+        icon: `chrome://${config.addonRef}/content/icons/grading16.png`,
       },
       sidenav: {
         l10nID: `${config.addonRef}-tabpanel-reader-tab-label`,
-        icon: `chrome://${config.addonRef}/content/icons/favicon.png`,
+        icon: `chrome://${config.addonRef}/content/icons/grading20.png`,
       },
-      onInit: ({ body, item }: { body: HTMLElement; item: Zotero.Item }) => {
+      onInit: ({ body, item }: any) => {
         this.renderReferenceSection(body, item);
+        this.setSectionHeaderCount(body, 0);
       },
-      onRender: ({ body, item }: { body: HTMLElement; item: Zotero.Item }) => {
+      onRender: ({ body, item }: any) => {
         if (!body.hasChildNodes()) {
           this.renderReferenceSection(body, item);
         }
+        this.setSectionHeaderCount(body, 0);
       },
-      onItemChange: ({ body, item }: { body: HTMLElement; item: Zotero.Item }) => {
+      onItemChange: ({ body, item }: any) => {
         body.innerHTML = "";
         this.readerPanels.delete(`item-${item.id}`);
         this.readerBoxes.delete(`item-${item.id}`);
         this.renderReferenceSection(body, item);
+        this.setSectionHeaderCount(body, 0);
       },
       sectionButtons: [
         {
@@ -508,12 +510,27 @@ export default class Views {
    * @param fromCurrentPage Search references from the current page backward
    * @returns 
    */
+  private setSectionHeaderCount(body: HTMLElement, count: number) {
+    // Find the collapsible-section parent and set the title text directly
+    const section = body.closest("collapsible-section") || body.parentElement?.closest("collapsible-section");
+    if (section) {
+      const label = section.querySelector(".head .label");
+      if (label) {
+        label.textContent = `${count} ${getString("relatedbox-number-label")}`;
+      }
+      // Also try the title span
+      const title = section.querySelector(".head .title");
+      if (title) {
+        title.textContent = `${count} ${getString("relatedbox-number-label")}`;
+      }
+    }
+  }
+
   public async refreshReferences(panel: XUL.TabPanel, local: boolean = true, fromCurrentPage: boolean = false) {
     Zotero.ProgressWindowSet.closeAll();
-    let label = panel.querySelector("label#reference-num") as XUL.Label;
-    label.innerText = `${0} ${getString("relatedbox-number-label")}`;
+    this.setSectionHeaderCount(panel as any as HTMLElement, 0);
 
-    // clear 
+    // clear
     panel.querySelectorAll("#related-grid *").forEach(e => e.remove());
     panel.querySelectorAll("#zotero-reference-search").forEach(e => e.remove());
 
@@ -534,10 +551,9 @@ export default class Views {
       let { box } = this.addRow(panel, references, refIndex)!;
       // @ts-ignore
       box.reference = reference
-      label.innerText = `${refIndex + 1}/${referenceNum} ${getString("relatedbox-number-label")}`;
     })
 
-    label.innerText = `${referenceNum} ${getString("relatedbox-number-label")}`;
+    this.setSectionHeaderCount(panel as any as HTMLElement, referenceNum);
   }
 
   public showTipUI(refRect: Rect, reference: ItemInfo, position: string, idText?: string) {

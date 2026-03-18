@@ -44,64 +44,6 @@ export function createReaderRelatedBox(options: ReaderPanelOptions) {
               children: [
                 {
                   tag: "div",
-                  classList: ["header"],
-                  namespace: "html",
-                  children: [
-                    {
-                      tag: "label",
-                      id: "reference-num",
-                      properties: {
-                        innerText: `0 ${getString("relatedbox-number-label")}`,
-                      },
-                      listeners: [
-                        {
-                          type: "dblclick",
-                          listener: () => {
-                            const textArray: string[] = [];
-                            relatedbox.querySelectorAll("#related-grid .box #reference-label")
-                              .forEach((e: any) => textArray.push(e.textContent));
-                            (new ztoolkit.ProgressWindow("Reference"))
-                              .createLine({ text: "Copy all references", type: "success" })
-                              .show();
-                            (new ztoolkit.Clipboard())
-                              .addText(textArray.join("\n"), "text/unicode")
-                              .copy();
-                          },
-                        },
-                      ],
-                    },
-                    {
-                      tag: "button",
-                      id: "refresh-button",
-                      properties: {
-                        innerText: getString("relatedbox-refresh-label"),
-                      },
-                      listeners: [
-                        {
-                          type: "mousedown",
-                          listener: (event: any) => {
-                            timer = window.setTimeout(async () => {
-                              timer = undefined;
-                              await onRefresh(false, event.ctrlKey || event.metaKey);
-                            }, 1000);
-                          },
-                        },
-                        {
-                          type: "mouseup",
-                          listener: async (event: any) => {
-                            if (timer) {
-                              window.clearTimeout(timer);
-                              timer = undefined;
-                              await onRefresh(true, event.ctrlKey || event.metaKey);
-                            }
-                          },
-                        },
-                      ],
-                    },
-                  ],
-                },
-                {
-                  tag: "div",
                   namespace: "html",
                   id: "related-grid",
                   classList: ["grid"],
