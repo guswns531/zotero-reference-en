@@ -22,6 +22,7 @@ export default class Views {
   public utils!: Utils;
   private readerPanels = new Map<string, XUL.TabPanel>();
   private readerBoxes = new Map<string, Element>();
+  private sectionSummarySetters = new Map<string, (summary: string) => void>();
   private readerPanelTimer?: number;
   constructor() {
     initLocale();
@@ -136,22 +137,31 @@ export default class Views {
         l10nID: `${config.addonRef}-tabpanel-reader-tab-label`,
         icon: `chrome://${config.addonRef}/content/icons/grading20.png`,
       },
-      onInit: ({ body, item }: any) => {
+      onInit: ({ body, item, setSectionSummary }: any) => {
+        this.sectionSummarySetters.set(`item-${item.id}`, setSectionSummary);
         this.renderReferenceSection(body, item);
         this.setSectionHeaderCount(body, 0);
       },
-      onRender: ({ body, item }: any) => {
+      onRender: ({ body, item, setSectionSummary }: any) => {
+        this.sectionSummarySetters.set(`item-${item.id}`, setSectionSummary);
         if (!body.hasChildNodes()) {
           this.renderReferenceSection(body, item);
         }
         this.setSectionHeaderCount(body, 0);
       },
-      onItemChange: ({ body, item }: any) => {
+      onItemChange: ({ body, item, setSectionSummary }: any) => {
+        this.sectionSummarySetters.set(`item-${item.id}`, setSectionSummary);
         body.innerHTML = "";
         this.readerPanels.delete(`item-${item.id}`);
         this.readerBoxes.delete(`item-${item.id}`);
         this.renderReferenceSection(body, item);
         this.setSectionHeaderCount(body, 0);
+
+        const panel = this.readerPanels.get(`item-${item.id}`);
+        if (!panel) return;
+
+        // Auto-fetch references (referenceLoader handles disk caching via local=true)
+        this.refreshReferences(panel);
       },
       sectionButtons: [
         {
@@ -511,17 +521,30 @@ export default class Views {
    * @returns 
    */
   private setSectionHeaderCount(body: HTMLElement, count: number) {
-    // Find the collapsible-section parent and set the title text directly
+    // Use Zotero 7 setSectionSummary API so count is visible even when collapsed
     const section = body.closest("collapsible-section") || body.parentElement?.closest("collapsible-section");
+    const summaryText = `${count} ${getString("relatedbox-number-label")}`;
+
+    // Find the item key for this body to get the stored setSectionSummary function
+    for (const [key, panel] of this.readerPanels) {
+      if ((panel as any) === body || (panel as any as HTMLElement).contains?.(body) || body.contains?.(panel as any as HTMLElement)) {
+        const setter = this.sectionSummarySetters.get(key);
+        if (setter) {
+          setter(summaryText);
+        }
+        break;
+      }
+    }
+
+    // Also update DOM directly for the expanded state
     if (section) {
       const label = section.querySelector(".head .label");
       if (label) {
-        label.textContent = `${count} ${getString("relatedbox-number-label")}`;
+        label.textContent = summaryText;
       }
-      // Also try the title span
       const title = section.querySelector(".head .title");
       if (title) {
-        title.textContent = `${count} ${getString("relatedbox-number-label")}`;
+        title.textContent = summaryText;
       }
     }
   }
@@ -547,6 +570,7 @@ export default class Views {
     const referenceNum = references.length
     // @ts-ignore
     panel.references = references
+
     references.forEach(async (reference: ItemBaseInfo, refIndex: number) => {
       let { box } = this.addRow(panel, references, refIndex)!;
       // @ts-ignore
@@ -555,6 +579,7 @@ export default class Views {
 
     this.setSectionHeaderCount(panel as any as HTMLElement, referenceNum);
   }
+
 
   public showTipUI(refRect: Rect, reference: ItemInfo, position: string, idText?: string) {
     let toTimeInfo = (t: string) => {
