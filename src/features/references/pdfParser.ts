@@ -1,9 +1,10 @@
-import { config } from "../../package.json";
+import { config } from "../../../package.json";
+import { waitForReaderPDFViewerApplication } from "../../utils/zoteroCompat";
 import Utils from "./utils";
 
 
 /**
- * 解析PDF的参考文献
+ * Parse references from a PDF.
  */
 class PDF {
   public refRegex: RegExp[][];
@@ -12,19 +13,17 @@ class PDF {
     this.utils = utils || new Utils()
     this.refRegex = [
       [/^\(\d+\)\s?/], // (1)
-      [/^\[\d{0,3}\].+?[\,\.\uff0c\uff0e]?/], // [10] Polygon
-      [/^\uff3b\d{0,3}\uff3d.+?[\,\.\uff0c\uff0e]?/],  // ［1］
-      [/^\d+[\,\.\uff0c\uff0e]/], // 1. Polygon
-      [/^\d+[^\d\w]+?[\,\.\uff0c\uff0e]?/], // 1. Polygon
-      [/^\[.+?\].+?[\,\.\uff0c\uff0e]?/], // [RCK + 20] 
+      [/^\[\d{0,3}\].+?[,.]?/], // [10] Polygon
+      [/^\d+[,.]/], // 1. Polygon
+      [/^\d+[^\d\w]+?[,.]?/], // 1. Polygon
+      [/^\[.+?\].+?[,.]?/], // [RCK + 20] 
       [/^\d+\s+/], // 1 Polygon
-      [/^[A-Z]\w.+?\(\d+[a-z]?\)/, /^[A-Z][A-Za-z]+[\,\.\uff0c\uff0e]?/, /^.+?,.+.,/, /^[\u4e00-\u9fa5]{1,4}[\,\.\uff0c\uff0e]?/],  // 中文
+      [/^[A-Z]\w.+?\(\d+[a-z]?\)/, /^[A-Z][A-Za-z]+[,.]?/, /^.+?,.+.,/],
     ];
   }
 
   async getReferences(reader: _ZoteroTypes.ReaderInstance, fromCurrentPage: boolean): Promise<ItemInfo[]> {
     let refLines = await this.getRefLines(reader, fromCurrentPage)
-    const maxHeight = (reader._internalReader._lastView as any)._iframeWindow.PDFViewerApplication.pdfViewer._pages[0].viewport.viewBox[3]
     if (refLines.length == 0) {
       new ztoolkit.ProgressWindow("[Fail] PDF", {closeOtherProgressWindows: true})
         .createLine({
@@ -98,7 +97,7 @@ class PDF {
     for (j = 1; j < items.length; j++) {
       let line = toLine(items[j])
       let lastLine = lines.slice(-1)[0]
-      // 考虑上标下标
+      // Handle superscripts and subscripts.
       if (
         line.y == lastLine.y ||
         (line.y >= lastLine.y && line.y < lastLine.y + lastLine.height) ||
@@ -107,15 +106,15 @@ class PDF {
         lastLine.text += (" " + line.text)
         lastLine.width += line.width
         lastLine.url = lastLine.url || line.url
-        // 记录所有高度
+        // Track all observed heights.
         lastLine._height.push(line.height)
       } else {
-        // 处理已完成的行，用众数赋值高度
+        // Finalize the completed line and assign its height by mode.
         let hh = lastLine._height
         // lastLine.height = hh.sort((a, b) => a - b)[parseInt(String(hh.length / 2))]
-        // 用最大值
+        // Use the maximum value.
         // lastLine.height = hh.sort((a, b) => b-a)[0]
-        // 众数
+        // Use the mode.
         const num: any = {}
         for (let i = 0; i < hh.length; i++) {
           num[String(hh[i])] ??= 0
@@ -126,7 +125,7 @@ class PDF {
             return num[h2] - num[h1]
           })[0]
         )
-        // 新的一行
+        // Start a new line.
         lines.push(line)
       }
     }
@@ -134,7 +133,7 @@ class PDF {
   }
 
   /**
-   * 如果是参考文献格式的开头，返回类型；否则返回-1
+   * Return the reference prefix type if the text looks like a reference start; otherwise return -1.
    * @param text 
    * @returns 
    */
@@ -154,7 +153,7 @@ class PDF {
   }
 
   /**
-   * 把多行合并为一个完整的参考文献
+   * Merge multiple lines into a single reference entry.
    * @param refLines 
    * @returns 
    */
@@ -162,7 +161,7 @@ class PDF {
     const _refLines = [...refLines]
     ztoolkit.log(this.copy(_refLines))
     let firstLine = refLines[0]
-    // 已知新一行参考文献缩进
+    // Detect the indentation used by wrapped reference lines.
     let firstX = firstLine.x
     let secondLine = refLines.slice(1).find(line => {
       return line.x != firstX && this.abs(line.x - firstX) < 10 * firstLine.height
@@ -179,7 +178,7 @@ class PDF {
       let lineRefType = this.getRefType(text)
       if (
         // this.abs(line.x - firstX) < line.height * 1.2 &&
-        // 跳过验证其它，特别小心
+        // Skip other checks here; this branch is intentionally conservative.
         (lineRefType == refType && refType <= 2) ||
         (
           indent == 0 &&
@@ -202,7 +201,7 @@ class PDF {
         ref = line
         ztoolkit.log("->", line.text)
       } else if (ref) {
-        // 是为了去除部分跟随refLines传入的噪声，一般发生在最后几行
+        // Trim tail noise that sometimes slips in with refLines, usually near the end.
         if (ref && i / refLines.length > .9 && this.abs(this.abs(ref.x - line.x) - this.abs(indent)) > 5 * line.height) {
           refLines = refLines.slice(0, i)
           ztoolkit.log("x", line.text, this.abs(this.abs(ref.x - line.x) - this.abs(indent)), 5 * line.height)
@@ -224,7 +223,7 @@ class PDF {
   }
 
   /**
-   * 判断A和B两个矩形是否几何相交
+   * Check whether rectangles A and B intersect geometrically.
    * @param A 
    * @param B 
    * @returns 
@@ -243,7 +242,7 @@ class PDF {
   }
 
   /**
-   * 为items每个item更新对应annotations中annotation的链接信息
+   * Update each item with the link metadata from overlapping annotations.
    */
   private updateItemsAnnotions(items: PDFItem[], annotations: PDFAnnotation[]) {
     // annotations {rect: [416, 722, 454, 733]}
@@ -265,7 +264,7 @@ class PDF {
   }
 
   /**
-   * 读取PDF一页面为lines对象
+   * Read one PDF page and convert it into line objects.
    * @param pdfPage 
    * @returns 
    */
@@ -288,10 +287,28 @@ class PDF {
     fromCurrentPage: boolean,
     fullText: boolean = false
   ) {
-    const PDFViewerApplication = (reader._internalReader._lastView as any)._iframeWindow.PDFViewerApplication;
+    const PDFViewerApplication = await waitForReaderPDFViewerApplication(reader);
+    if (!PDFViewerApplication) {
+      new ztoolkit.ProgressWindow("[Fail] PDF", { closeOtherProgressWindows: true })
+        .createLine({
+          text: "PDF viewer unavailable",
+          type: "fail",
+        })
+        .show();
+      return [];
+    }
     await PDFViewerApplication.pdfLoadingTask.promise;
     await PDFViewerApplication.pdfViewer.pagesPromise;
-    let pages = PDFViewerApplication.pdfViewer._pages;
+    let pages = PDFViewerApplication.pdfViewer?._pages;
+    if (!Array.isArray(pages) || !pages.length) {
+      new ztoolkit.ProgressWindow("[Fail] PDF", { closeOtherProgressWindows: true })
+        .createLine({
+          text: "PDF pages unavailable",
+          type: "fail",
+        })
+        .show();
+      return [];
+    }
     // skip the pdf with page less than 3
     let pageLines: any = {};
     // read 2 page to remove head and tail
@@ -326,7 +343,7 @@ class PDF {
       })
     }
     // analysis maxPct
-    // 可能奇数页没有，偶数有
+    // Some content may appear only on even pages or only on odd pages.
     let parts: any = []
     let part = []
     let refPart: any = []
@@ -348,14 +365,14 @@ class PDF {
         popupWin.changeLine({ text: `[${p}/${p}] Read PDF` });
       }
       if (lines.length == 0) { continue }
-      // 移除PDF页面首尾关于期刊页码等信息
-      // 正向匹配移除PDF顶部无效信息
+      // Remove header/footer noise such as journal names and page numbers.
+      // Match forward to strip invalid content near the top of the page.
       let removeNumber = (text: string) => {
-        // 英文页码
+        // Roman-style page markers.
         if (/^[A-Z]{1,3}$/.test(text)) {
           text = ""
         }
-        // 正常页码1,2,3
+        // Standard numeric page markers such as 1, 2, 3.
         text = text.replace(/\s+/g, "").replace(/\d+/g, "")
         return text
       }
@@ -372,17 +389,17 @@ class PDF {
           return false
         }
       }
-      // 是否为重复
+      // Check whether the line is duplicated elsewhere.
       const isSameText = (lineA: PDFLine, lineB: PDFLine) => {
         const textA = removeNumber(lineA.text)
         const textB = removeNumber(lineB.text)
         return textA == textB
       }
       lines.forEach((line: PDFLine) => {
-        // 100%正文区域保护
+        // Preserve lines that are fully inside the main text area.
         if (line.x / maxWidth > .2 && line.y / maxHeight > .2 && (line.x + line.width) / maxWidth < .8 && (line.y + line.height) / maxHeight < .8 || line.same) { return }
         for (const _pageIndex in pageLines) {
-          // 排除自身页面
+          // Skip the current page itself.
           if (Number(_pageIndex) == pageNum) { continue }
           pageLines[_pageIndex].find((_line: PDFLine) => {
             if (isSameText(line, _line) && isSamePosition(line, _line)) {
@@ -396,8 +413,8 @@ class PDF {
       lines = lines.filter((e: any) => !e.same);
       if (lines.length == 0) { continue }
       ztoolkit.log("remove", [...lines.filter((e: any) => e.same)])
-      // 分栏
-      // 跳过图表影响正常分栏
+      // Split the page into columns.
+      // Ignore figures and tables so they do not distort column detection.
       let isFigureOrTable = (text: string) => {
         text = text.replace(/\s+/g, "")
         const flag = /^(Table|Fig|Figure).*\d/i.test(text)
@@ -440,7 +457,7 @@ class PDF {
         part.reverse()
         // parts.push(part)
         // return
-        // 去除缩进同一页同意栏的缩进
+        // Normalize indentation within the same page and column.
         let columns = [[part[0]]]
         for (let i = 1; i < part.length; i++) {
           let line = part[i];
@@ -485,17 +502,17 @@ class PDF {
           _refPart.done = true
         }
       } 
-      // 分析最右下角元素
+      // Inspect the bottom-right-most element.
       let endLines = lines.filter((line: PDFLine) => {
         return lines.every((_line: PDFLine) => {
           if (_line == line) { return true }
-          // 其它所有行都在它左上方
+          // Every other line must sit above it or to its left.
           return (_line.x + _line.width < line.x + line.width || _line.y > line.y)
         })
       })
       let heightOverlap = (hh1: number[], hh2: number[]) => {
         return hh1.some(h1 => {
-          // 有容差
+          // Allow some tolerance.
           return hh2.some(h2=>h1-h2 < (h1>h2?h2:h1)*.3)
         })
       }
@@ -503,21 +520,21 @@ class PDF {
       ztoolkit.log("endLine", endLine)
       for (let i = lines.length - 1; i >= 0; i--) {
         let line = lines[i]
-        // 刚开始就是图表，然后才是右下角文字，剔除图表
+        // If the page starts with a figure/table before the actual bottom-right text, discard that noise.
         if (
           // !isStart && pageNum < totalPageNum - 1 &&
-          // 考虑到有些PDF最后一页以图表结尾
+          // Some PDFs end with a figure or table on the last page.
           !isStart &&
-          // 图表等
+          // Figures, tables, and similar content.
           (
-            // 我们认为上一页的正文（非图表）应从页面最低端开始
+            // Assume the previous page's body text should begin from the lowest non-figure region.
             line != endLine ||
             // ((line.x + line.width) / maxWidth < 0.7 && line.y > pageYmin) ||
-            /(图|fig|Fig|Figure).*\d+/.test(line.text.replace(/\s+/g, ""))
+            /(\u56fe|fig|Fig|Figure).*\d+/.test(line.text.replace(/\s+/g, ""))
           )
         ) {
           ztoolkit.log("Not the endLine, skip", line.text)
-          // 这里考虑到可能一开始就是图表需要打包扔掉之前的part
+          // Handle cases where the page begins with a figure and the previous part should be flushed.
           // 10.1016/j.scitotenv.2018.03.202
           if (part.length && pageNum == totalPageNum - 1) {
             donePart(part)
@@ -527,7 +544,7 @@ class PDF {
         } else {
           isStart = true
         }
-        // 前一页第一行与当前页最后一行
+        // Compare the first line of the previous page with the last line of the current page.
         if (
           part.length > 0 &&
           // part.slice(-1)[0].height != line.height
@@ -538,7 +555,7 @@ class PDF {
           part = [line]
           continue
         }
-        // push之前判断
+        // Check for section boundaries before pushing the line.
         if (isRefBreak(line.text)) {
           ztoolkit.log("isRefBreak", line.text)
           doneRefPart(part)
@@ -547,7 +564,7 @@ class PDF {
         }
         part.push(line)
         if (
-          // 以下条件满足则页内断开
+          // If any of these conditions hold, break within the page.
           (
             lines[i - 1] &&
             (
@@ -558,7 +575,7 @@ class PDF {
               (
                 line.pageNum == lines[i - 1].pageNum &&
                 line.column == lines[i - 1].column &&
-                // 增大行间距阈值
+                // Use a larger line-spacing threshold.
                 this.abs(line.y - lines[i - 1].y) > line.height * 3
               )
             )

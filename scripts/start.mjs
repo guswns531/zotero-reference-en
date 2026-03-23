@@ -2,8 +2,15 @@ import { execSync } from "child_process";
 import { exit } from "process";
 import { existsSync, writeFileSync, readFileSync, mkdirSync } from "fs";
 import path from "path";
-import details from "../package.json" assert { type: "json" };
-import cmd from "./zotero-cmd.json" assert { type: "json" };
+
+function loadJSON(relativePath) {
+  return JSON.parse(
+    readFileSync(new URL(relativePath, import.meta.url), "utf-8"),
+  );
+}
+
+const details = loadJSON("../package.json");
+const cmd = loadJSON("./zotero-cmd.json");
 
 const { addonID } = details.config;
 const { zoteroBinPath, profilePath, dataDir } = cmd.exec;

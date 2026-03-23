@@ -1,5 +1,5 @@
 import { config } from "../../package.json";
-import Utils from "./utils";
+import Utils from "../features/references/utils";
 
 export default class TipUI {
   private utils: Utils;
@@ -26,7 +26,7 @@ export default class TipUI {
   public onInit(refRect: Rect, position:string) {
     this.refRect = refRect;
     this.position = position;
-    // 初始化，先移除其它container
+    // Initialize by removing any existing tooltip containers first.
     this.clear()
     this.buildContainer()
   }
@@ -40,7 +40,7 @@ export default class TipUI {
     })
   }
   /**
-   * 放置container到合适位置
+   * Place the tooltip container in a suitable position.
    * 
    */
   private place() {
@@ -65,7 +65,7 @@ export default class TipUI {
 			x: 1196
 			y: 172
 		}
-		右上(x=0, y=0)
+		top-right origin (x=0, y=0)
 		`
     let setStyles = (styles: {[key: string]: string}) => {
       for (let k in styles) {
@@ -78,7 +78,7 @@ export default class TipUI {
     const maxHeight = winRect.height;
     const refRect = this.refRect;
 
-    // 左侧
+    // Left side.
     let styles: any
     if (this.position == "left") {
       styles = {
@@ -100,7 +100,7 @@ export default class TipUI {
       this.container.style.flexDirection = "column-reverse"
     }
     let rect = setStyles(styles)
-    // 判断是否超届
+    // Clamp the tooltip back into the viewport if needed.
     if (rect.bottom > maxHeight) {
       setStyles({
         top: "",
@@ -131,7 +131,7 @@ export default class TipUI {
   }
 
   private buildContainer() {
-    // 位置计算
+    // Build the tooltip container before positioning it.
     this.container = ztoolkit.UI.createElement(
       document,
       "div",
@@ -205,10 +205,10 @@ export default class TipUI {
   }
 
   /**
-   * @param title 标题
-   * @param tags 标签
-   * @param descriptions 描述，一般是期刊，年份作者等
-   * @param content 正文，一般是摘要
+   * @param title Title text
+   * @param tags Metadata tags
+   * @param descriptions Secondary description lines, usually journal / year / authors
+   * @param content Main body text, usually the abstract
    * @returns 
    */
   public addTip(
@@ -532,11 +532,11 @@ export default class TipUI {
       this.container.style.transformOrigin = "center center"
     }
     if (event.detail > 0) {
-      // 缩小
+      // Zoom out.
       scale = scale - step
       this.container.style.transform = `scale(${scale < minScale ? minScale : scale})`;
     } else {
-      // 放大
+      // Zoom in.
       scale = scale + step
       this.container.style.transform = `scale(${scale > maxScale ? maxScale : scale})`;
     }

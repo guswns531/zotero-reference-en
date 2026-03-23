@@ -1,10 +1,12 @@
-import Requests from "./requests";
-import { config } from "../../package.json";
+import Requests from "../../platform/requests";
+import { config } from "../../../package.json";
 
-import Views from "./views";
-import TipUI from "./tip";
+import Views from "../../ui/views";
+import TipUI from "../../ui/tip";
 import buildGraphData from "./GraphData";
-const d3 = require("./d3")
+import { getPopupContainer } from "../../utils/zoteroCompat";
+import { setSVG } from "../../utils/svg";
+const d3 = require("../../modules/d3")
 
 export default class ConnectedPapers {
   private requests!: Requests;
@@ -21,17 +23,89 @@ export default class ConnectedPapers {
     this.views = views
   }
 
+  private async waitForElement<T extends Element>(
+    selectors: string[],
+    attempts = 50,
+    delayMs = 100,
+  ): Promise<T | undefined> {
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      for (const selector of selectors) {
+        const element = document.querySelector(selector) as T | null;
+        if (element) {
+          return element;
+        }
+      }
+      await Zotero.Promise.delay(delayMs);
+    }
+  }
+
+  private getItemTreeRoot() {
+    return (
+      document.querySelector("#item-tree-main-default")
+      ?? document.querySelector("#item-tree-main")
+    ) as HTMLElement | null;
+  }
+
+  private getItemPaneContent() {
+    return (
+      document.querySelector("#zotero-item-pane-content")
+      ?? document.querySelector("#item-pane-content")
+    ) as HTMLElement | null;
+  }
+
+  private getItemsToolbar() {
+    return (
+      document.querySelector("#zotero-items-toolbar")
+      ?? document.querySelector("#items-toolbar")
+    ) as HTMLElement | null;
+  }
+
+  private getRelatedPanelAnchor() {
+    return (
+      document.querySelector("relatedbox")
+      ?? document.querySelector("related-box")
+      ?? this.getItemPaneContent()
+    ) as HTMLElement | null;
+  }
+
+  private getRelatedPanelWidth() {
+    const width = this.getRelatedPanelAnchor()?.getBoundingClientRect().width;
+    return width ? `${width}px` : "100%";
+  }
+
+  private getMainItemsPaneNode() {
+    return document.querySelector("#item-tree-main-default, #zotero-items-tree-container");
+  }
+
+  private getRelatedBoxNode() {
+    return document.querySelector("relatedbox, related-box");
+  }
+
   public async init() {
     this.addStyle()
     this.registerButton()
     this.initOnSelect()
     document.querySelectorAll("#graph").forEach(e => e.remove());
     // document.querySelectorAll(".resizer").forEach(e => e.remove())
-    while (!document.querySelector("#item-tree-main-default")) {
-      await Zotero.Promise.delay(100)
+    const mainItemsPane = await this.waitForElement<HTMLElement>([
+      "#item-tree-main-default",
+      "#zotero-items-tree-container",
+      "#item-tree-main",
+    ]);
+    if (mainItemsPane) {
+      this.initItemsPane(mainItemsPane);
+    } else {
+      ztoolkit.log("Connected Papers items pane not found. Skipping graph view registration.");
     }
-    this.initItemsPane()
-    this.initEditPane()
+    const itemPaneContent = await this.waitForElement<HTMLElement>([
+      "#zotero-item-pane-content",
+      "#item-pane-content",
+    ]);
+    if (itemPaneContent) {
+      this.initEditPane(itemPaneContent);
+    } else {
+      ztoolkit.log("Connected Papers item pane anchor not found. Skipping related panel registration.");
+    }
   }
 
   private addStyle() {
@@ -79,7 +153,7 @@ export default class ConnectedPapers {
           #zotero-item-pane-content {
             width: 100%;
           }
-        `// 这里添加后会让Mac的图标变形，所以遇Mac不添
+        `// Adding this on macOS distorts the icon, so skip it there.
         + (Zotero.isMac ? "" : `
         #zotero-reference-show-hide-graph-view .toolbarbutton-icon {
           width: 16px;
@@ -92,6 +166,9 @@ export default class ConnectedPapers {
   }
 
   private initOnSelect() {
+    if (!ZoteroPane.itemsView || !("onSelect" in ZoteroPane.itemsView)) {
+      return;
+    }
     ZoteroPane.itemsView.onSelect.addListener(() => {
       this.updateAddOrRemove()
     })
@@ -118,38 +195,45 @@ export default class ConnectedPapers {
   }
 
   private registerButton() {
-    const node = document.querySelector("#zotero-tb-advanced-search")
-    let newNode = node?.cloneNode(true) as XUL.ToolBarButton
+    if (document.querySelector("#zotero-reference-show-hide-graph-view")) {
+      return;
+    }
+    const toolbar = this.getItemsToolbar()
+    if (!toolbar) {
+      ztoolkit.log("Connected Papers toolbar not found. Skipping toolbar button registration.");
+      return;
+    }
+    const newNode = document.createXULElement("toolbarbutton") as XUL.ToolBarButton
     newNode.setAttribute("id", "zotero-reference-show-hide-graph-view")
     newNode.setAttribute("tooltiptext", "show/hide")
-    newNode.setAttribute("command", "")
-    newNode.setAttribute("oncommand", "")
+    newNode.setAttribute("class", "zotero-tb-button")
     newNode.addEventListener("click", async () => {
       let node = this.graphContainer;
       if (!node) {return }
       if (node.style.display == "none") {
-        // this.splitterAfter.style.display = ""
         node.style.display = ""
         this.boxAfter.style.display = "block"
         Zotero.Prefs.set(`${config.addonRef}.graphView.enable`, true)
       } else {
-        // this.splitterAfter.style.display = "none"
         node.style.display = "none"
         this.boxAfter.style.display = "none"
         Zotero.Prefs.set(`${config.addonRef}.graphView.enable`, false)
       }
     })
     newNode.style.listStyleImage = `url(chrome://${config.addonRef}/content/icons/connectedpapers.png)`
-    document.querySelector("#zotero-items-toolbar")?.insertBefore(newNode, node?.nextElementSibling!)
+    toolbar.appendChild(newNode)
   }
 
   /**
-   * 注册右侧面板
+   * Register the right-side panel.
    */
-  private initEditPane() {
+  private initEditPane(beforeBox = this.getItemPaneContent()) {
     // let relatedbox = (document.querySelector("#zotero-editpane-related") as Element);
-    let beforeBox = (document.querySelector("#zotero-item-pane-content") as Element);
-    beforeBox.parentElement?.setAttribute("orient", "vertical");
+    if (!beforeBox) {
+      ztoolkit.log("Connected Papers item pane anchor not found. Skipping related panel registration.");
+      return;
+    }
+    // orient change removed — breaks Zotero 7 layout
     const boxAfter = this.boxAfter = document.createElement("box") as XUL.Box;
     boxAfter.id = "connected-papers-relatedsplit-after";
     boxAfter.style.overflow = "hidden"
@@ -163,9 +247,13 @@ export default class ConnectedPapers {
   }
 
   public buildRelatedPanel(box: XUL.Box) {
+    const getRelatedWidth = () => {
+      const width = this.getRelatedBoxNode()?.getBoundingClientRect().width;
+      return width ? `${width}px` : "100%";
+    };
     document.querySelector("#zotero-items-splitter")
       ?.addEventListener("mousemove", () => {
-        relatedContainer.style.width = document.querySelector("relatedbox")?.getBoundingClientRect().width + "px"
+        relatedContainer.style.width = getRelatedWidth()
       })
     const relatedContainer = ztoolkit.UI.appendElement({
       // namespace: "xul",
@@ -174,7 +262,7 @@ export default class ConnectedPapers {
       styles: {
         margin: "0",
         padding: "0",
-        width: document.querySelector("relatedbox")?.getBoundingClientRect().width + "px",
+        width: getRelatedWidth(),
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -215,10 +303,7 @@ export default class ConnectedPapers {
               children: [
                 {
                   tag: "div",
-                  classList: ["icon"],
-                  properties: {
-                    innerHTML: `<svg style="margin-right: .5em;" width="24" height="24"  viewBox="2 0 24 24" fill="#7a306c" xmlns="http://www.w3.org/2000/svg" class="graph-action-icon mr-[6px]" data-v-f4c185ee=""><path d="M11 19V13H5V11H11V5H13V11H19V13H13V19H11Z"></path></svg>`
-                  }
+                  classList: ["icon", "add-origin-icon"],
                 },
                 {
                   tag: "span",
@@ -287,10 +372,7 @@ export default class ConnectedPapers {
               children: [
                 {
                   tag: "div",
-                  classList: ["icon"],
-                  properties: {
-                    innerHTML: `<svg style="margin-right: .5em;"  width="24" height="24" viewBox="0 0 24 24" fill="#7a306c" xmlns="http://www.w3.org/2000/svg" class="graph-action-icon mr-[6px]" data-v-f4c185ee=""><path d="M19 13H5V11H19V13Z"></path></svg>`
-                  }
+                  classList: ["icon", "remove-origin-icon"],
                 },
                 {
                   tag: "span",
@@ -341,14 +423,12 @@ export default class ConnectedPapers {
           children: [
             {
               tag: "div",
+              classList: ["build-graph-icon"],
               styles: {
                 display: "flex",
                 justifyContent: "center",
                 alignContent: "center",
               },
-              properties: {
-                innerHTML: `<svg style="margin: auto 0; margin-right: .5em;" width="20" height="20" viewBox="-8 -5.5 35 35" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.1757 14.0888L13.9333 7.08338L14.5478 6.93021L16.7901 13.9356L16.1757 14.0888Z" fill="url(#paint0_linear_icon)"></path><path fill-rule="evenodd" clip-rule="evenodd" d="M6.33333 15.1579L11.4 6.31579L11.9499 6.62914L6.88322 15.4712L6.33333 15.1579Z" fill="url(#paint1_linear_icon)"></path><path d="M19 13.8947C19 15.29 17.8658 16.4211 16.4667 16.4211C15.0675 16.4211 13.9333 15.29 13.9333 13.8947C13.9333 12.4995 15.0675 11.3684 16.4667 11.3684C17.8658 11.3684 19 12.4995 19 13.8947Z" fill="url(#paint2_linear_icon)"></path><path d="M10.1333 18.9474C10.1333 21.7379 7.86491 24 5.06667 24C2.26842 24 0 21.7379 0 18.9474C0 16.1569 2.26842 13.8947 5.06667 13.8947C7.86491 13.8947 10.1333 16.1569 10.1333 18.9474Z" fill="url(#paint3_linear_icon)"></path><path d="M16.9731 3.78947C16.9731 5.88234 15.2718 7.57895 13.1731 7.57895C11.0744 7.57895 9.37312 5.88234 9.37312 3.78947C9.37312 1.69661 11.0744 0 13.1731 0C15.2718 0 16.9731 1.69661 16.9731 3.78947Z" fill="url(#paint4_linear_icon)"></path><defs><linearGradient id="paint0_linear_icon" x1="1.9" y1="24" x2="26.4917" y2="-24.0554" gradientUnits="userSpaceOnUse"><stop stop-color="#239092"></stop><stop offset="0.624978" stop-color="#97C8C9"></stop></linearGradient><linearGradient id="paint1_linear_icon" x1="1.9" y1="24" x2="26.4917" y2="-24.0554" gradientUnits="userSpaceOnUse"><stop stop-color="#239092"></stop><stop offset="0.624978" stop-color="#97C8C9"></stop></linearGradient><linearGradient id="paint2_linear_icon" x1="1.9" y1="24" x2="26.4917" y2="-24.0554" gradientUnits="userSpaceOnUse"><stop stop-color="#239092"></stop><stop offset="0.624978" stop-color="#97C8C9"></stop></linearGradient><linearGradient id="paint3_linear_icon" x1="1.9" y1="24" x2="26.4917" y2="-24.0554" gradientUnits="userSpaceOnUse"><stop stop-color="#239092"></stop><stop offset="0.624978" stop-color="#97C8C9"></stop></linearGradient><linearGradient id="paint4_linear_icon" x1="1.9" y1="24" x2="26.4917" y2="-24.0554" gradientUnits="userSpaceOnUse"><stop stop-color="#239092"></stop><stop offset="0.624978" stop-color="#97C8C9"></stop></linearGradient></defs></svg>`
-              }
             },
             {
               tag: "span",
@@ -370,7 +450,7 @@ export default class ConnectedPapers {
                     .show()
                   return
                 }
-                // 构建图谱
+                // Build the graph.
                 const items = this.itemIDs.map((id: number) => Zotero.Items.get(id)) as Zotero.Item[]
                 relatedContainer.querySelectorAll(".normal-items .item")?.forEach(e => e.remove())
                 relatedContainer.querySelectorAll(".prior-items .item")?.forEach(e => e.remove())
@@ -532,10 +612,17 @@ export default class ConnectedPapers {
     }, box) as HTMLDivElement
     this.relatedContainer = relatedContainer
 
+    // Insert SVG icons via DOMParser to avoid Zotero's innerHTML sanitizer
+    const addOriginIcon = relatedContainer.querySelector(".add-origin-icon");
+    if (addOriginIcon) setSVG(addOriginIcon, `<svg xmlns="http://www.w3.org/2000/svg" style="margin-right: .5em;" width="24" height="24" viewBox="2 0 24 24" fill="#7a306c"><path d="M11 19V13H5V11H11V5H13V11H19V13H13V19H11Z"></path></svg>`);
+    const removeOriginIcon = relatedContainer.querySelector(".remove-origin-icon");
+    if (removeOriginIcon) setSVG(removeOriginIcon, `<svg xmlns="http://www.w3.org/2000/svg" style="margin-right: .5em;" width="24" height="24" viewBox="0 0 24 24" fill="#7a306c"><path d="M19 13H5V11H19V13Z"></path></svg>`);
+    const buildGraphIcon = relatedContainer.querySelector(".build-graph-icon");
+    if (buildGraphIcon) setSVG(buildGraphIcon, `<svg xmlns="http://www.w3.org/2000/svg" style="margin: auto 0; margin-right: .5em;" width="20" height="20" viewBox="-8 -5.5 35 35" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.1757 14.0888L13.9333 7.08338L14.5478 6.93021L16.7901 13.9356L16.1757 14.0888Z" fill="url(#paint0_linear_icon)"></path><path fill-rule="evenodd" clip-rule="evenodd" d="M6.33333 15.1579L11.4 6.31579L11.9499 6.62914L6.88322 15.4712L6.33333 15.1579Z" fill="url(#paint1_linear_icon)"></path><path d="M19 13.8947C19 15.29 17.8658 16.4211 16.4667 16.4211C15.0675 16.4211 13.9333 15.29 13.9333 13.8947C13.9333 12.4995 15.0675 11.3684 16.4667 11.3684C17.8658 11.3684 19 12.4995 19 13.8947Z" fill="url(#paint2_linear_icon)"></path><path d="M10.1333 18.9474C10.1333 21.7379 7.86491 24 5.06667 24C2.26842 24 0 21.7379 0 18.9474C0 16.1569 2.26842 13.8947 5.06667 13.8947C7.86491 13.8947 10.1333 16.1569 10.1333 18.9474Z" fill="url(#paint3_linear_icon)"></path><path d="M16.9731 3.78947C16.9731 5.88234 15.2718 7.57895 13.1731 7.57895C11.0744 7.57895 9.37312 5.88234 9.37312 3.78947C9.37312 1.69661 11.0744 0 13.1731 0C15.2718 0 16.9731 1.69661 16.9731 3.78947Z" fill="url(#paint4_linear_icon)"></path><defs><linearGradient id="paint0_linear_icon" x1="1.9" y1="24" x2="26.4917" y2="-24.0554" gradientUnits="userSpaceOnUse"><stop stop-color="#239092"></stop><stop offset="0.624978" stop-color="#97C8C9"></stop></linearGradient><linearGradient id="paint1_linear_icon" x1="1.9" y1="24" x2="26.4917" y2="-24.0554" gradientUnits="userSpaceOnUse"><stop stop-color="#239092"></stop><stop offset="0.624978" stop-color="#97C8C9"></stop></linearGradient><linearGradient id="paint2_linear_icon" x1="1.9" y1="24" x2="26.4917" y2="-24.0554" gradientUnits="userSpaceOnUse"><stop stop-color="#239092"></stop><stop offset="0.624978" stop-color="#97C8C9"></stop></linearGradient><linearGradient id="paint3_linear_icon" x1="1.9" y1="24" x2="26.4917" y2="-24.0554" gradientUnits="userSpaceOnUse"><stop stop-color="#239092"></stop><stop offset="0.624978" stop-color="#97C8C9"></stop></linearGradient><linearGradient id="paint4_linear_icon" x1="1.9" y1="24" x2="26.4917" y2="-24.0554" gradientUnits="userSpaceOnUse"><stop stop-color="#239092"></stop><stop offset="0.624978" stop-color="#97C8C9"></stop></linearGradient></defs></svg>`);
   }
 
   /**
-   * 图谱节点和列表节点同时触发状态
+   * Keep graph nodes and list items in sync for hover and selection state.
    * @param arg 
    */
   private setNodeState(arg: {
@@ -571,7 +658,7 @@ export default class ConnectedPapers {
         paper_id: arg.paperID,
         src: src
       };
-      // 选择普通item，设置prior/deriv works背景色
+      // When a normal item is selected, highlight the related prior/derivative works.
       [
         ...this.relatedContainer?.querySelectorAll(".prior-items .item") as any, 
         ...this.relatedContainer?.querySelectorAll(".deriv-items .item") as any
@@ -582,7 +669,7 @@ export default class ConnectedPapers {
           itemNode.classList.remove("highlight")
         }
       })
-      // 选择prior/deriv works，普通item背景色
+      // When a prior/derivative work is selected, highlight matching normal items.
       Array.prototype.forEach.call(
         this.relatedContainer?.querySelectorAll(".normal-items .item"),
         (itemNode) => {
@@ -604,7 +691,7 @@ export default class ConnectedPapers {
       Array.prototype.forEach.call(
         this.relatedContainer?.querySelectorAll(".item"),
         (itemNode) => {
-          // 跳过选择
+          // Skip the currently selected item.
           // @ts-ignore
           if (this.frame.contentWindow.GLOBAL_SELECTED_PAPER.value?.paper_id == itemNode._ref.identifiers.paperID) {
             return
@@ -693,10 +780,7 @@ export default class ConnectedPapers {
                   justifyContent: "center",
                   alignItems: "center"
                 },
-                classList: ["icon"],
-                properties: {
-                  innerHTML: `<svg width="24" height="24" viewBox="0 0 24 24" fill="#7a306c" xmlns="http://www.w3.org/2000/svg" class="graph-action-icon mr-[6px]" data-v-f4c185ee=""><path d="M19 13H5V11H19V13Z"></path></svg>`
-                },
+                classList: ["icon", "remove-item-icon"],
                 listeners: [
                   {
                     type: "click",
@@ -739,16 +823,16 @@ export default class ConnectedPapers {
             {
               type: "mouseenter",
               listener: () => {
-                // 图谱hover效果
+                // Mirror hover state in the graph.
                 this.setNodeState({ state: "hover", paperID: info.identifiers.paperID as string })
               }
             },
-            // 浮窗
+            // Tooltip.
             {
               type: "mouseup",
               listener: (event: any) => {
                 if (event.button != 2 ){return }
-                // 浮窗
+                // Tooltip.
                 itemNode.classList.add("active")
                 let timeout = parseInt(Zotero.Prefs.get(`${config.addonRef}.showTipAfterMillisecond`) as string)
                 const position = Zotero.Prefs.get("extensions.zotero.layout", true) == "stacked" ? "top center" : "left"
@@ -778,11 +862,11 @@ export default class ConnectedPapers {
                 }, timeout / 2)
               }
             },
-            // 从列表定位到节点
+            // Jump from the list to the graph node.
             {
               type: "click",
               listener: () => {
-                // 清除浮窗，定位
+                // Clear the tooltip and move focus.
                 tipUI && tipUI.clear()
                 this.setNodeState({ state: "selected", paperID: info.identifiers.paperID as string })
                 new ztoolkit.Clipboard().addText(info.identifiers!.DOI!, "text/unicode").copy()
@@ -794,7 +878,7 @@ export default class ConnectedPapers {
       ],
     }, parent)
 
-    ztoolkit.UI.appendElement({
+    const actionBtn = ztoolkit.UI.appendElement({
       tag: "div",
       styles: {
         width: "2em",
@@ -803,12 +887,6 @@ export default class ConnectedPapers {
         justifyContent: "center",
         alignItems: "center",
         cursor: "pointer"
-      },
-      properties: {
-        innerHTML: info?._itemID ?
-          `<svg viewBox="0 0 743 743" width="1.2em" height="1.2em"  xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" overflow="hidden"><defs><clipPath id="clip0"><rect x="769" y="697" width="743" height="743"/></clipPath></defs><g transform="translate(-769 -697)"><path d="M769 1068.5C769 863.326 935.326 697 1140.5 697 1345.67 697 1512 863.326 1512 1068.5 1512 1273.67 1345.67 1440 1140.5 1440 935.326 1440 769 1273.67 769 1068.5Z" fill="#ca6363" fill-rule="evenodd"/><path d="M1162.25 901C1173.47 901 1181.89 904.166 1190.66 912.612L1316.22 1032.96C1327.09 1042.81 1332 1054.07 1332 1068.5 1332 1082.58 1326.74 1094.19 1316.22 1104.04L1190.66 1224.39C1181.89 1232.48 1173.47 1236 1162.25 1236 1141.2 1236 1126.12 1220.52 1126.12 1198.35 1126.12 1187.79 1130.68 1177.24 1138.75 1170.55L1178.73 1133.95 1215.56 1107.56 1143.66 1112.13 989.685 1112.13C965.838 1112.13 949 1093.13 949 1068.5 949 1043.52 965.838 1024.87 989.685 1024.87L1143.66 1024.87 1215.21 1029.09 1179.78 1003.05 1138.75 966.451C1130.68 959.766 1126.12 949.209 1126.12 938.3 1126.12 916.483 1141.2 901 1162.25 901Z" fill="#FFFFFF" fill-rule="evenodd"/></g></svg>`
-          :
-          `<svg viewBox="0 0 743 743" width="1.2em" height="1.2em" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" overflow="hidden"><defs><clipPath id="clip0"><rect x="944" y="711" width="743" height="743"/></clipPath></defs><g transform="translate(-944 -711)"><path d="M944 1082.5C944 877.326 1110.33 711 1315.5 711 1520.67 711 1687 877.326 1687 1082.5 1687 1287.67 1520.67 1454 1315.5 1454 1110.33 1454 944 1287.67 944 1082.5Z" fill="#9cb8b8" fill-rule="evenodd"/><path d="M1159.5 1083.5 1472.1 1083.5" stroke="#FFFFFF" stroke-width="87.0833" stroke-linecap="round" stroke-miterlimit="8" fill="none" fill-rule="evenodd"/><path d="M1316.5 927.5 1316.5 1240.1" stroke="#FFFFFF" stroke-width="87.0833" stroke-linecap="round" stroke-miterlimit="8" fill="none" fill-rule="evenodd"/></g></svg>`
       },
       listeners: [
         {
@@ -838,7 +916,7 @@ export default class ConnectedPapers {
                 popupWin.startCloseTimer(3000);
                 (document.querySelector("#build-graph") as HTMLDivElement).click()
               }
-              // 获取分类
+              // Get the currently selected collection.
               const collection = ZoteroPane.getSelectedCollection()
               let collections: number[] = []
               if (collection) {
@@ -846,9 +924,9 @@ export default class ConnectedPapers {
               }
               if (event.ctrlKey || event.metaKey) {
                 let rect = itemNode.getBoundingClientRect()
-                // 构建分类选择
+                // Build the collection picker.
                 let menuPopup = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", 'menupopup') as XUL.MenuPopup;
-                document.querySelector("#browser")!.append(menuPopup);
+                getPopupContainer(document).append(menuPopup);
                 let collections = Zotero.Collections.getByLibrary(1);
                 for (let col of collections) {
                   let menuItem = Zotero.Utilities.Internal.createMenuForTarget(
@@ -877,6 +955,14 @@ export default class ConnectedPapers {
         }
       ]
     }, itemNode)
+
+    // Insert SVG icons via DOMParser to avoid Zotero's innerHTML sanitizer
+    const removeIcon = itemNode.querySelector(".remove-item-icon");
+    if (removeIcon) setSVG(removeIcon, `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#7a306c"><path d="M19 13H5V11H19V13Z"></path></svg>`);
+    setSVG(actionBtn, info?._itemID
+      ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 743 743" width="1.2em" height="1.2em" overflow="hidden"><defs><clipPath id="clip0"><rect x="769" y="697" width="743" height="743"/></clipPath></defs><g transform="translate(-769 -697)"><path d="M769 1068.5C769 863.326 935.326 697 1140.5 697 1345.67 697 1512 863.326 1512 1068.5 1512 1273.67 1345.67 1440 1140.5 1440 935.326 1440 769 1273.67 769 1068.5Z" fill="#ca6363" fill-rule="evenodd"/><path d="M1162.25 901C1173.47 901 1181.89 904.166 1190.66 912.612L1316.22 1032.96C1327.09 1042.81 1332 1054.07 1332 1068.5 1332 1082.58 1326.74 1094.19 1316.22 1104.04L1190.66 1224.39C1181.89 1232.48 1173.47 1236 1162.25 1236 1141.2 1236 1126.12 1220.52 1126.12 1198.35 1126.12 1187.79 1130.68 1177.24 1138.75 1170.55L1178.73 1133.95 1215.56 1107.56 1143.66 1112.13 989.685 1112.13C965.838 1112.13 949 1093.13 949 1068.5 949 1043.52 965.838 1024.87 989.685 1024.87L1143.66 1024.87 1215.21 1029.09 1179.78 1003.05 1138.75 966.451C1130.68 959.766 1126.12 949.209 1126.12 938.3 1126.12 916.483 1141.2 901 1162.25 901Z" fill="#FFFFFF" fill-rule="evenodd"/></g></svg>`
+      : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 743 743" width="1.2em" height="1.2em" overflow="hidden"><defs><clipPath id="clip0"><rect x="944" y="711" width="743" height="743"/></clipPath></defs><g transform="translate(-944 -711)"><path d="M944 1082.5C944 877.326 1110.33 711 1315.5 711 1520.67 711 1687 877.326 1687 1082.5 1687 1287.67 1520.67 1454 1315.5 1454 1110.33 1454 944 1287.67 944 1082.5Z" fill="#9cb8b8" fill-rule="evenodd"/><path d="M1159.5 1083.5 1472.1 1083.5" stroke="#FFFFFF" stroke-width="87.0833" stroke-linecap="round" stroke-miterlimit="8" fill="none" fill-rule="evenodd"/><path d="M1316.5 927.5 1316.5 1240.1" stroke="#FFFFFF" stroke-width="87.0833" stroke-linecap="round" stroke-miterlimit="8" fill="none" fill-rule="evenodd"/></g></svg>`
+    );
     return itemNode
   }
 
@@ -885,13 +971,13 @@ export default class ConnectedPapers {
     const DOI = item.getField("DOI") as string
     const title = item.getField("title") as string
     if (DOI) {
-      // 根据DOI精确确定id
+      // Resolve the paper ID precisely from the DOI.
       let res = await this.requests.get(
         `https://rest.connectedpapers.com/id_translator/doi/${DOI}`
       )
       return res.paperId
     } else {
-      // 通过标题粗确定标题
+      // Fall back to a title-based lookup.
       // const api = 'https://rest.connectedpapers.com/autocomplete/${title}`
       const api = `https://rest.connectedpapers.com/search/${escape(title)}/1`
       let response = await this.requests.post(api)
@@ -933,9 +1019,12 @@ export default class ConnectedPapers {
     return graphData
   }
 
-  private initItemsPane() {
-    const mainNode = document.querySelector("#item-tree-main-default")!
-    // 图形容器
+  private initItemsPane(mainNode = this.getMainItemsPaneNode()) {
+    if (!mainNode) {
+      ztoolkit.log("Connected Papers items pane not found. Skipping graph view registration.");
+      return;
+    }
+    // Graph container.
     const minHeight = 200
     const graphContainer = ztoolkit.UI.createElement(document, "div", {
       id: "graph-view",
@@ -1037,9 +1126,9 @@ export default class ConnectedPapers {
       const firstChild = parent.firstChild as HTMLDivElement
       parent.scrollTo(0, target!.offsetTop - firstChild.offsetTop)
     }
-    // 下面绑定是覆盖
+    // The bindings below intentionally override the default handlers.
     app.graphdata.sim_node_circles
-      // 从图谱节点反向定位到列表
+      // Jump back from the graph node to the list.
       .on("click", (event: any, it: any) => {
         const paperID = it.paperId
         this.setNodeState({ state: "selected", paperID })

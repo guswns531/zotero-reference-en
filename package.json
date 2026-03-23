@@ -1,9 +1,9 @@
 {
   "name": "zotero-reference",
   "version": "0.6.4",
-  "description": "Crush Reference for Zotero",
+  "description": "Zotero Reference for Zotero",
   "config": {
-    "addonName": "Crush Reference",
+    "addonName": "Zotero Reference",
     "addonID": "zoteroreference@polygon.org",
     "addonRef": "zoteroreference",
     "addonInstance": "ZoteroReference",
@@ -34,7 +34,7 @@
     "type": "git",
     "url": "git+https://github.com/muisedestiny/zotero-reference.git"
   },
-  "author": "Polygon",
+  "author": "guswns531",
   "license": "AGPL-3.0-or-later",
   "bugs": {
     "url": "https://github.com/muisedestiny/zotero-reference/issues"

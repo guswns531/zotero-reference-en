@@ -108,6 +108,34 @@
       preference="extensions.zotero.__addonRef__.saveAPIReferences" />
   </groupbox>
   <groupbox>
+    <html:h2 data-l10n-id="caption-semantic-scholar"></html:h2>
+    <html:p style="margin: .5em .7em;" data-l10n-id="semanticScholarApiKey-description"></html:p>
+    <html:div style="display: flex; flex-direction: row; align-items: center; gap: .5em; margin: 0 .7em .5em;">
+      <html:input
+        style="flex: 1; min-width: 24em;"
+        type="password"
+        id="__addonRef__-semantic-scholar-api-key">
+      </html:input>
+      <html:button id="__addonRef__-semantic-scholar-api-key-save" type="button" data-l10n-id="semanticScholarApiKey-save"></html:button>
+      <html:button id="__addonRef__-semantic-scholar-api-key-clear" type="button" data-l10n-id="semanticScholarApiKey-clear"></html:button>
+    </html:div>
+    <html:div style="margin: 0 .7em;">
+      <html:span id="__addonRef__-semantic-scholar-api-key-status"></html:span>
+    </html:div>
+    <html:div style="display: flex; justify-content: space-between; align-items: center; margin: .75em .7em .4em;">
+      <html:span data-l10n-id="semanticScholarLogs-label"></html:span>
+      <html:div style="display: flex; gap: .5em;">
+        <html:button id="__addonRef__-semantic-scholar-logs-refresh" type="button" data-l10n-id="semanticScholarLogs-refresh"></html:button>
+        <html:button id="__addonRef__-semantic-scholar-logs-clear" type="button" data-l10n-id="semanticScholarLogs-clear"></html:button>
+      </html:div>
+    </html:div>
+    <html:textarea
+      id="__addonRef__-semantic-scholar-logs"
+      readonly="readonly"
+      style="margin: 0 .7em .4em; width: calc(100% - 1.4em); min-height: 16em; font-family: monospace; font-size: 12px; resize: vertical;">
+    </html:textarea>
+  </groupbox>
+  <groupbox>
     <html:h2 data-l10n-id="caption-match"></html:h2>
     <hbox style="margin-left: .7em;display: flex;align-items: center;">
       <html:span style="margin: auto 0; margin-right: .5em;" data-l10n-id="notInLibarayOpacity-start"></html:span>

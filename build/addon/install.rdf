@@ -5,30 +5,30 @@
     xmlns:RDF="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
     <RDF:Description
         RDF:about="urn:mozilla:install-manifest"
-        em:id="__addonID__"
-        em:name="__addonName__"
-        em:version="__buildVersion__"
+        em:id="zoteroreference@polygon.org"
+        em:name="Zotero Reference"
+        em:version="0.6.4"
         em:type="2"
-        em:creator="__author__"
-        em:description="__description__"
-        em:homepageURL="__homepage__"
-        em:iconURL="chrome://__addonRef__/content/icons/favicon.png"
-        em:optionsURL="chrome://__addonRef__/content/preferences.xul"
-        em:updateURL="__updaterdf__"
+        em:creator="guswns531"
+        em:description="Zotero Reference for Zotero"
+        em:homepageURL="https://github.com/MuiseDestiny/zotero-reference#readme"
+        em:iconURL="chrome://zoteroreference/content/icons/favicon.png"
+        em:optionsURL="chrome://zoteroreference/content/preferences.xhtml"
+        em:updateURL="https://raw.githubusercontent.com/muisedestiny/zotero-reference/bootstrap/update.json"
         em:multiprocessCompatible="true"
         em:bootstrap="true">
         <em:targetApplication>
             <Description>
                 <em:id>zotero@chnm.gmu.edu</em:id>
-                <em:minVersion>5.0</em:minVersion>
-                <em:maxVersion>*</em:maxVersion>
+                <em:minVersion>6.999</em:minVersion>
+                <em:maxVersion>8.*</em:maxVersion>
             </Description>
         </em:targetApplication>
         <em:targetApplication>
             <Description>
                 <em:id>juris-m@juris-m.github.io</em:id>
-                <em:minVersion>5.0</em:minVersion>
-                <em:maxVersion>*</em:maxVersion>
+                <em:minVersion>6.999</em:minVersion>
+                <em:maxVersion>8.*</em:maxVersion>
             </Description>
         </em:targetApplication>
   </RDF:Description>

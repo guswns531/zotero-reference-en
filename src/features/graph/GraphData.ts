@@ -53,7 +53,7 @@ async function askUserAccessToken(update = false) {
 }
 
 export default async function buildGraphData(id: string, popupWin: ProgressWindowHelper): Promise<Graph |undefined> {
-  // 读取密钥
+  // Load the API key.
   let accessToken = Zotero.Prefs.get("ConnectedPapers.accessToken") as string
   if (!accessToken) {
     accessToken = await askUserAccessToken() as string
