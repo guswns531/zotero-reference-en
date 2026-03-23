@@ -3,6 +3,8 @@ import { restorePatchedProgressWindow } from "./mainWindow";
 import { resetRuntime } from "../app/runtime";
 
 export function onShutdown(): void {
+  // Stop runtime timers and release UI resources before teardown.
+  Zotero[config.addonInstance]?.views?.onUnload?.();
   restorePatchedProgressWindow();
   resetRuntime();
   ztoolkit.unregisterAll();

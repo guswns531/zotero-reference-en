@@ -47,6 +47,14 @@ zoteroreference-savePDFReferences =
 zoteroreference-saveAPIReferences =
   .label = Save references fetched from APIs
 
+zoteroreference-caption-semantic-scholar = Semantic Scholar
+zoteroreference-semanticScholarApiKey-description = Configure the API key used by the item context-menu action "Update Metadata from Semantic Scholar". The key is stored in Zotero's local credential storage.
+zoteroreference-semanticScholarApiKey-save = Save
+zoteroreference-semanticScholarApiKey-clear = Clear
+zoteroreference-semanticScholarLogs-label = Recent execution logs
+zoteroreference-semanticScholarLogs-refresh = Refresh Logs
+zoteroreference-semanticScholarLogs-clear = Clear Logs
+
 zoteroreference-caption-match = Match
 zoteroreference-notInLibarayOpacity-start = Match local items and show items outside My Library with opacity
 zoteroreference-notInLibarayOpacity-end = {"  "}

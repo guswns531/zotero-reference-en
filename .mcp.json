@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "zotero-dev": {
+      "command": "npx",
+      "args": ["-y", "@introfini/mcp-server-zotero-dev"],
+      "env": {
+        "ZOTERO_RDP_PORT": "6100"
+      }
+    }
+  }
+}

@@ -52,6 +52,14 @@ savePDFReferences =
 saveAPIReferences = 
   .label = Salva riferimenti da API
 
+caption-semantic-scholar = Semantic Scholar
+semanticScholarApiKey-description = Configura la chiave API usata dall'azione del menu contestuale per aggiornare i metadati da Semantic Scholar. La chiave viene salvata nella memoria locale delle credenziali di Zotero.
+semanticScholarApiKey-save = Salva
+semanticScholarApiKey-clear = Cancella
+semanticScholarLogs-label = Log di esecuzione recenti
+semanticScholarLogs-refresh = Aggiorna log
+semanticScholarLogs-clear = Cancella log
+
 
 caption-match = Abbina
 notInLibarayOpacity-start = Abbina elementi e rendi gli elementi che non sono nella biblioteca trasparenti

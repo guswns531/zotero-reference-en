@@ -31,6 +31,6 @@ pref("extensions.zotero.zoteroreference.notInLibarayOpacity", "1");
 
 pref("extensions.zotero.zoteroreference.graphView.enable", false);
 pref("extensions.zotero.zoteroreference.graphView.height", "400px");
-
+pref("extensions.zotero.zoteroreference.semanticScholar.logs", "");
 
 

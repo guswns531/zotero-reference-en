@@ -1,6 +1,7 @@
 import { config } from "../../package.json";
 import Views from "../ui/views";
 import ConnectedPapers from "../features/graph/connectedpapers";
+import { initializeSemanticScholarMenu } from "../features/references/semanticScholar";
 import { reportError } from "../utils/errors";
 
 let initialized = false;
@@ -16,6 +17,7 @@ export async function initializeRuntime() {
     Zotero[config.addonInstance].views = views;
 
     await new ConnectedPapers(views).init();
+    initializeSemanticScholarMenu();
 
     initialized = true;
     return views;

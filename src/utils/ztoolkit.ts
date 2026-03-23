@@ -2,6 +2,7 @@ import { BasicTool, makeHelperTool, unregister } from "zotero-plugin-toolkit/dis
 import { UITool } from "zotero-plugin-toolkit/dist/tools/ui";
 import { ReaderTabPanelManager } from "zotero-plugin-toolkit/dist/managers/readerTabPanel";
 import { PreferencePaneManager } from "zotero-plugin-toolkit/dist/managers/preferencePane";
+import { MenuManager } from "zotero-plugin-toolkit/dist/managers/menu";
 import { ClipboardHelper } from "zotero-plugin-toolkit/dist/helpers/clipboard";
 import { ProgressWindowHelper } from "zotero-plugin-toolkit/dist/helpers/progressWindow";
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
@@ -53,6 +54,7 @@ class MyToolkit extends BasicTool {
   UI = new UITool(this);
   ReaderTabPanel = new ReaderTabPanelManager(this);
   PreferencePane = new PreferencePaneManager(this);
+  Menu = new MenuManager(this);
   Clipboard = makeHelperTool(ClipboardHelper, this);
   ProgressWindow = makeHelperTool(ProgressWindowHelper, this);
   Dialog = makeHelperTool(DialogHelper, this);

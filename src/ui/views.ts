@@ -99,11 +99,16 @@ export default class Views {
     });
   }
 
+  private getPanelKey(item: Zotero.Item): string {
+    return `item-${item.id}`;
+  }
+
   private renderReferenceSection(body: HTMLElement, item: Zotero.Item) {
-    const panelKey = `item-${item.id}`;
+    const panelKey = this.getPanelKey(item);
     if (this.readerPanels.has(panelKey)) {
       return;
     }
+    (body as any).__panelKey = panelKey;
     const panel = body as any as XUL.TabPanel;
     this.readerPanels.set(panelKey, panel);
 
@@ -138,30 +143,37 @@ export default class Views {
         icon: `chrome://${config.addonRef}/content/icons/grading20.png`,
       },
       onInit: ({ body, item, setSectionSummary }: any) => {
-        this.sectionSummarySetters.set(`item-${item.id}`, setSectionSummary);
+        this.sectionSummarySetters.set(this.getPanelKey(item), setSectionSummary);
         this.renderReferenceSection(body, item);
         this.setSectionHeaderCount(body, 0);
       },
       onRender: ({ body, item, setSectionSummary }: any) => {
-        this.sectionSummarySetters.set(`item-${item.id}`, setSectionSummary);
+        this.sectionSummarySetters.set(this.getPanelKey(item), setSectionSummary);
         if (!body.hasChildNodes()) {
           this.renderReferenceSection(body, item);
         }
         this.setSectionHeaderCount(body, 0);
       },
       onItemChange: ({ body, item, setSectionSummary }: any) => {
-        this.sectionSummarySetters.set(`item-${item.id}`, setSectionSummary);
+        const panelKey = this.getPanelKey(item);
+        this.sectionSummarySetters.set(panelKey, setSectionSummary);
         body.innerHTML = "";
-        this.readerPanels.delete(`item-${item.id}`);
-        this.readerBoxes.delete(`item-${item.id}`);
+        this.readerPanels.delete(panelKey);
+        this.readerBoxes.delete(panelKey);
         this.renderReferenceSection(body, item);
         this.setSectionHeaderCount(body, 0);
 
-        const panel = this.readerPanels.get(`item-${item.id}`);
+        const panel = this.readerPanels.get(panelKey);
         if (!panel) return;
 
         // Auto-fetch references (referenceLoader handles disk caching via local=true)
         this.refreshReferences(panel);
+      },
+      onDestroy: ({ item }: any) => {
+        const panelKey = this.getPanelKey(item);
+        this.sectionSummarySetters.delete(panelKey);
+        this.readerPanels.delete(panelKey);
+        this.readerBoxes.delete(panelKey);
       },
       sectionButtons: [
         {
@@ -189,7 +201,7 @@ export default class Views {
         // Find the section body for the current item
         const item = getReaderParentItem(reader);
         if (!item) return;
-        const panelKey = `item-${item.id}`;
+        const panelKey = this.getPanelKey(item);
         const panel = this.readerPanels.get(panelKey);
         if (!panel) return;
 
@@ -209,6 +221,13 @@ export default class Views {
         }
         await this.loadingRelated(reader);
       }, 500);
+    }
+  }
+
+  public onUnload() {
+    if (this.readerPanelTimer !== undefined) {
+      window.clearInterval(this.readerPanelTimer);
+      this.readerPanelTimer = undefined;
     }
   }
 
@@ -521,31 +540,21 @@ export default class Views {
    * @returns 
    */
   private setSectionHeaderCount(body: HTMLElement, count: number) {
-    // Use Zotero 7 setSectionSummary API so count is visible even when collapsed
-    const section = body.closest("collapsible-section") || body.parentElement?.closest("collapsible-section");
     const summaryText = `${count} ${getString("relatedbox-number-label")}`;
 
-    // Find the item key for this body to get the stored setSectionSummary function
-    for (const [key, panel] of this.readerPanels) {
-      if ((panel as any) === body || (panel as any as HTMLElement).contains?.(body) || body.contains?.(panel as any as HTMLElement)) {
-        const setter = this.sectionSummarySetters.get(key);
-        if (setter) {
-          setter(summaryText);
-        }
-        break;
-      }
+    // O(1) lookup via key stored on body element during renderReferenceSection
+    const panelKey = (body as any).__panelKey as string | undefined;
+    if (panelKey) {
+      this.sectionSummarySetters.get(panelKey)?.(summaryText);
     }
 
     // Also update DOM directly for the expanded state
+    const section = body.closest("collapsible-section") || body.parentElement?.closest("collapsible-section");
     if (section) {
       const label = section.querySelector(".head .label");
-      if (label) {
-        label.textContent = summaryText;
-      }
+      if (label) label.textContent = summaryText;
       const title = section.querySelector(".head .title");
-      if (title) {
-        title.textContent = summaryText;
-      }
+      if (title) title.textContent = summaryText;
     }
   }
 
@@ -554,7 +563,8 @@ export default class Views {
     this.setSectionHeaderCount(panel as any as HTMLElement, 0);
 
     // clear
-    panel.querySelectorAll("#related-grid *").forEach(e => e.remove());
+    const grid = panel.querySelector("#related-grid");
+    if (grid) grid.innerHTML = "";
     panel.querySelectorAll("#zotero-reference-search").forEach(e => e.remove());
 
     const references = await loadReferencesForPanel(
@@ -571,7 +581,7 @@ export default class Views {
     // @ts-ignore
     panel.references = references
 
-    references.forEach(async (reference: ItemBaseInfo, refIndex: number) => {
+    references.forEach((reference: ItemBaseInfo, refIndex: number) => {
       let { box } = this.addRow(panel, references, refIndex)!;
       // @ts-ignore
       box.reference = reference
